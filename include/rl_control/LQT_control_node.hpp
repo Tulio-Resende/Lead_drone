@@ -25,7 +25,7 @@ private:
         ros::Subscriber curPosSub;
             void receivePos(const geometry_msgs::PointStamped::ConstPtr& msg);
         ros::Subscriber curVelSub;
-            void receiveVel(const geometry_msgs::Vector3sStamped::ConstPtr& msg);
+            void receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& msg);
         
     void configPublishers();
         ros::Publisher vel_pub;

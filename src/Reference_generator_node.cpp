@@ -46,14 +46,16 @@ void ReferenceGenerator::configPublishers(){
 
 void ReferenceGenerator::sendRefPos(double h){
 
-    xm = Am * xm;
-    
     Eigen::Vector3d out;
     out.x() = Cmx * xm;
     out.y() = Cmy * xm;
 
     output_ref.x = out.x();
     output_ref.y = out.y();
+
+    xm = Am * xm;
+    
+  
 
     out_ref_pub.publish(output_ref);
 
