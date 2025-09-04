@@ -69,8 +69,8 @@ void ReferenceGenerator::sendRefPos(double h){
     out.x() = Cmx * xm;
     out.y() = Cmy * xm;
 
-    output_ref.x = out.x();
-    output_ref.y = out.y();
+    output_ref.x = out.x() + 2; //+ yss
+    output_ref.y = out.y() + 2; //+ yss
 
 
     out_ref_pub.publish(output_ref);

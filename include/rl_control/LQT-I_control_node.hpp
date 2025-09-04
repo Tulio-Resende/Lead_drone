@@ -29,7 +29,7 @@ void configSubscribers();
     // ros::Subscriber curRefOutput;
         // void receiveRefOut(const geometry_msgs::Vector3::ConstPtr& msg);
     // ros::Subscriber curModelOutput;
-        // void receiveModelOut(const geometry_msgs::Vector3::ConstPtr& msg);
+    //     void receiveModelOut(const geometry_msgs::Vector3::ConstPtr& msg);
 
 
 void configPublishers();
@@ -41,10 +41,18 @@ Eigen::Vector3d cur_pos;
 Eigen::Vector3d cur_vel;
 Eigen::Vector3d cur_model_output;
 Eigen::Vector3d cur_ref_output;
-Eigen::Vector3d mu;
+Eigen::Vector3d tilde_mu;
+Eigen::Vector3d old_pos;
+Eigen::Vector3d tilde_pos;
+Eigen::Vector3d old_vel;
+Eigen::Vector3d tilde_vel;
+Eigen::Vector3d old_u;
+Eigen::Vector3f tilde_u;
 
+Eigen::Vector3f u;
 double yss;
 
+bool flag = false;
 
 public:
 
