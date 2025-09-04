@@ -12,7 +12,7 @@
 #include <random>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Vector3Stamped.h>
-#include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Float64MultiArray.h>
 
 
 class LQTController
@@ -21,7 +21,7 @@ private:
 
     void configSubscribers();
         ros::Subscriber refGeneratorSub;
-            void receiveRef(const std_msgs::Float32MultiArray::ConstPtr& msg);
+            void receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg);
         ros::Subscriber curPosSub;
             void receivePos(const geometry_msgs::PointStamped::ConstPtr& msg);
         ros::Subscriber curVelSub;

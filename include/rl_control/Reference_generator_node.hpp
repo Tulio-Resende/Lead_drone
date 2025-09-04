@@ -11,7 +11,7 @@
 #include <random>
 #include <geometry_msgs/Vector3.h>
 
-#include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Float64MultiArray.h>
 
 
 class ReferenceGenerator
@@ -22,14 +22,14 @@ private:
         ros::Publisher ref_cmd_pub;
         ros::Publisher out_ref_pub;
 
-    std_msgs::Float32MultiArray ref_msg;
+    std_msgs::Float64MultiArray ref_msg;
     geometry_msgs::Vector3 output_ref;   
     
     // Defining Reference Generate System
-    Eigen::Matrix<float, 5, 5> Am;
-    Eigen::Matrix<float, 5, 1> xm;
-    Eigen::Matrix<float, 1, 5> Cmx;
-    Eigen::Matrix<float, 1, 5> Cmy;
+    Eigen::Matrix<float, 4, 4> Am;
+    Eigen::Matrix<float, 4, 1> xm;
+    Eigen::Matrix<float, 1, 4> Cmx;
+    Eigen::Matrix<float, 1, 4> Cmy;
 
 public:
 

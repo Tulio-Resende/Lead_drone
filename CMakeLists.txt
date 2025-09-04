@@ -142,6 +142,8 @@ add_executable(LQR_control_node src/LQR_control_node.cpp)
 add_executable(LQT_control_node src/LQT_control_node.cpp)
 add_executable(LQT-I_control_node src/LQT-I_control_node.cpp)
 add_executable(Reference_generator_node src/Reference_generator_node.cpp)
+add_executable(Model_system_node src/Model_system_node.cpp)
+
 
 
 
@@ -158,6 +160,8 @@ add_dependencies(LQR_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_E
 add_dependencies(LQT_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(LQT-I_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(Reference_generator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(Model_system_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(LQR_control_node
@@ -171,6 +175,10 @@ target_link_libraries(LQT-I_control_node
 )
 
 target_link_libraries(Reference_generator_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(Model_system_node
   ${catkin_LIBRARIES}
 )
 #############

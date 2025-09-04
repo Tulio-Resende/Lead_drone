@@ -28,9 +28,9 @@ void LQTController::configSubscribers()
 void LQTController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
 {
     if (msg){
-        cur_pos(0) = msg->point.x; 
-        cur_pos(1) = msg->point.y; 
-        cur_pos(2) = msg->point.z;
+        cur_pos.x() = msg->point.x; 
+        cur_pos.y() = msg->point.y; 
+        cur_pos.z() = msg->point.z;
 
         // ROS_INFO_STREAM("Current position: " << "(" << cur_pos[0] << ", " << cur_pos[1] << ", " << cur_pos[2] <<")");
     }
@@ -39,14 +39,14 @@ void LQTController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
 void LQTController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& msg)
 {
     if (msg){
-        cur_vel(0) = msg->vector.x;
-        cur_vel(1) = msg->vector.y;
-        cur_vel(2) = msg->vector.z;
+        cur_vel.x() = msg->vector.x;
+        cur_vel.y() = msg->vector.y;
+        cur_vel.z() = msg->vector.z;
     }
 }
 
 
-void LQTController::receiveRef(const std_msgs::Float32MultiArray::ConstPtr& msg)
+void LQTController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg)
 {
     
     for (int i = 0; i < 5; i++) {
@@ -64,7 +64,7 @@ void LQTController::sendCmdVel(double h){
 
 
     // Gain calculated using idare in the Matlab file for the G_x = 1.3/s(s + 1.5)
-    double K_x1 = 0.5266, K_x2 = 0.2624 ; 
+    double K_x1 = 0.5266, K_x2 = 0.2624; 
 
     double Kx_m1 = -4.6666, Kx_m2 = 0.0719, Kx_m3 = -0.1128 , Kx_m4 = 0.0013, Kx_m5 = -0.0003;
 
