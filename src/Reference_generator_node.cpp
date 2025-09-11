@@ -44,6 +44,7 @@ ReferenceGenerator::~ReferenceGenerator()
 void ReferenceGenerator::configNode()
 {
     configPublishers();
+    configService();
     // ROS_INFO("Node configured.");
 }
 
@@ -54,6 +55,22 @@ void ReferenceGenerator::configPublishers(){
 
 }
 
+void ReferenceGenerator::configService(){
+    client_ref = handle.serviceClient<std_srvs::SetBool>("/rl_control/enable_control");
+}
+
+bool ReferenceGenerator::enableControl(bool enable) {
+    std_srvs::SetBool srv;
+    srv.request.data = enable;
+
+    if (client_ref.call(srv)) {
+        ROS_INFO_STREAM("Resposta do serviço: " << srv.response.message);
+        return srv.response.success;
+    } else {
+        ROS_ERROR("Falha ao chamar serviço enable_control");
+        return false;
+    }
+}
 
 void ReferenceGenerator::sendRefPos(double h){
 
@@ -80,6 +97,8 @@ void ReferenceGenerator::sendRefPos(double h){
 }
 
 
+
+
 int main(int argc, char **argv){
 
     ros::init(argc, argv, "Reference_generator_node");
@@ -87,6 +106,15 @@ int main(int argc, char **argv){
     ReferenceGenerator nh;
 
     nh.configNode();
+
+    // // === Chama o serviço apenas uma vez ===
+    // if (!nh.enableControl(true)) {
+    //     ROS_ERROR("Não foi possível habilitar o controle. Encerrando nó.");
+    //     return -1;  // Finaliza se falhar
+    // }
+
+    // ROS_INFO("Controle habilitado com sucesso! Iniciando geração de referência...");
+
 
     ros::Time start_time = ros::Time::now();
 
@@ -97,6 +125,7 @@ int main(int argc, char **argv){
 
         // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
+
         ros::spinOnce();
         nh.sendRefPos(h);
 

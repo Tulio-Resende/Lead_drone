@@ -1,25 +1,19 @@
-#include "rl_control/LQT-I_control_node.hpp"
+#include "rl_control/LQTI_control_node.hpp"
 
 /* Constructor */
 LQTIController::LQTIController(/* args */): 
 priv_handle("~")
 {
     ROS_DEBUG("Constructor called.");
-    cur_pos = Eigen::Vector3d::Zero();
     yss = 2;
-    tilde_mu.x() = 0;
-    tilde_mu.y() = 0;
-    // tilde_mu.z() = 0;
-    old_pos.x() = 0;
-    old_pos.y() = 0;
-    old_vel.x() = 0;
-    old_vel.y() = 0;
-    tilde_pos.x() = 0;   //initial condition
-    tilde_pos.y() = 0;
-    tilde_vel.x() = 0;
-    tilde_vel.y() = 0;
-    old_u.x() = 0;
-    old_u.y() = 0;
+    cur_pos = Eigen::Vector3d::Zero();
+    tilde_mu =  Eigen::Vector3d::Zero();
+    old_pos = Eigen::Vector3d::Zero();
+    old_vel = Eigen::Vector3d::Zero();
+    tilde_pos = Eigen::Vector3d::Zero();
+    tilde_vel = Eigen::Vector3d::Zero();
+    old_u = Eigen::Vector3d::Zero();
+
 }
 
 /* Destructor */
@@ -47,8 +41,8 @@ void LQTIController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg
         cur_pos.y() = msg->point.y; 
         cur_pos.z() = msg->point.z;
 
-        ROS_INFO("Posx %f", cur_pos.x());
-        ROS_INFO("Posy %f", cur_pos.y());
+        // ROS_INFO("Posx %f", cur_pos.x());
+        // ROS_INFO("Posy %f", cur_pos.y());
 
         flag = true;
 
@@ -96,12 +90,9 @@ void LQTIController::sendCmdVel(double h){
         tilde_vel.x() = cur_vel.x() - old_vel.x();
         tilde_vel.y() = cur_vel.y() - old_vel.y();
     
-        double K_x1 = 3.7832 , K_x2 =  1.3718; 
+        double K_x1 = 3.7832, K_x2 =  1.3718; 
 
-        double k_mu = -3.2953 ;
-        // double k_mu = 0;
-
-                                
+        double k_mu = -3.2953;
                     
         double Kx_m1 = -0.4564, Kx_m2 = 0.0077, Kx_m3 = -0.0095, Kx_m4 = 0.0001;
 

@@ -53,6 +53,7 @@ Eigen::Vector3f u;
 double yss;
 
 bool flag = false;
+bool flag_first_time = true;
 
 public:
 

@@ -1,6 +1,6 @@
 <launch>
 
-    <node pkg="rl_control" type="LQT-I_control_node" name="LQT-I_control_node"/>
+    <node pkg="rl_control" type="LQT-I_control_node" name="LQTI_control_node"/>
     <node pkg="rl_control" type="Reference_generator_node" name="Reference_generator_node"/>
 
 

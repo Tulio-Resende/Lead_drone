@@ -12,6 +12,7 @@
 #include <geometry_msgs/Vector3.h>
 
 #include <std_msgs/Float64MultiArray.h>
+#include <std_srvs/SetBool.h>
 
 
 class ReferenceGenerator
@@ -21,6 +22,8 @@ private:
     void configPublishers();
         ros::Publisher ref_cmd_pub;
         ros::Publisher out_ref_pub;
+    void configService();
+        ros::ServiceClient client_ref;
 
     std_msgs::Float64MultiArray ref_msg;
     geometry_msgs::Vector3 output_ref;   
@@ -31,6 +34,8 @@ private:
     Eigen::Matrix<float, 1, 4> Cmx;
     Eigen::Matrix<float, 1, 4> Cmy;
 
+    std_srvs::SetBool srv;
+
 public:
 
     ReferenceGenerator(/* args */);
@@ -40,6 +45,7 @@ public:
     ros::NodeHandle priv_handle;
 
     void configNode();
+    bool enableControl(bool enable);
 
     void sendRefPos(double h);
 };
