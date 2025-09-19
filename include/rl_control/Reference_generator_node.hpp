@@ -29,10 +29,10 @@ private:
     geometry_msgs::Vector3 output_ref;   
     
     // Defining Reference Generate System
-    Eigen::Matrix<float, 4, 4> Am;
-    Eigen::Matrix<float, 4, 1> xm;
-    Eigen::Matrix<float, 1, 4> Cmx;
-    Eigen::Matrix<float, 1, 4> Cmy;
+    Eigen::Matrix<float, 5, 5> Am;
+    Eigen::Matrix<float, 5, 1> xm;
+    Eigen::Matrix<float, 1, 5> Cmx;
+    Eigen::Matrix<float, 1, 5> Cmy;
 
     std_srvs::SetBool srv;
 

@@ -19,9 +19,10 @@
 #include <random>
 #include <eigen3/Eigen/LU>
 #include <utility>
+#include <std_msgs/Float64MultiArray.h>
 
 
-class RLLQRController
+class RLLQTController
 {
 private:
 
@@ -29,6 +30,8 @@ private:
     std::normal_distribution<double> dist;
 
     void configSubscribers();
+        ros::Subscriber refGeneratorSub;
+            void receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg);
         ros::Subscriber curPosSub;
             void receivePos(const geometry_msgs::PointStamped::ConstPtr& msg);
         ros::Subscriber curVelSub;
@@ -45,6 +48,7 @@ private:
 
 
     Eigen::Vector3d cur_pos, cur_vel;
+    Eigen::VectorXd ref_msg, old_ref_msg;
     Eigen::VectorXd state_x, state_y, old_state_x, old_state_y;
     std::vector<Eigen::VectorXd> phi;
     Eigen::VectorXd augmented_state_x, augmented_state_y, old_augmented_state_x, old_augmented_state_y;
@@ -53,13 +57,21 @@ private:
     std::vector<Eigen::MatrixXd> H;
     Eigen::MatrixXd prls;
     Eigen::Vector3f u, old_u;
-    Eigen::Vector3d old_pos, old_vel;
+    Eigen::Vector3d old_pos, old_vel, old_ref;
     Eigen::Vector3d Erls, reward;
 
 
     Eigen::Vector3d excitation;
-    Eigen::VectorXd old_bar_x;
-    Eigen::VectorXd bar_x;
+    Eigen::VectorXd old_bar_x, old_bar_y;
+    Eigen::VectorXd bar_x, bar_y;
+
+    Eigen::Matrix<double, 1, 2> Cd;
+    Eigen::Matrix<double, 1, 5> Cmx;
+    Eigen::Matrix<double, 1, 5> Cmy;
+    Eigen::Matrix<double, 1, 7> Cx;
+    Eigen::Matrix<double, 1, 7> Cy;
+    Eigen::Matrix<double, 7, 7> Qx;
+    Eigen::Matrix<double, 7, 7> Qy;
 
 
     
@@ -69,17 +81,22 @@ private:
     // bool control_enabled = false;
     bool flag_first_pos = true;
     bool flag_first_vel = true;
-    bool flag_pos = true;
+    bool flag_first_ref = true;
+    bool flag_pos = false;
     bool flag_vel = false;
+    bool flag_ref = false;
     bool gain_update = false;
+    bool dlyap = false;
+
+
 
     
     sensor_msgs::Joy vel_msg;
 
 public:
 
-    RLLQRController(/* args */);
-    ~RLLQRController();
+    RLLQTController(/* args */);
+    ~RLLQTController();
 
     ros::NodeHandle handle;
     ros::NodeHandle priv_handle;

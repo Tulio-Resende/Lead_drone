@@ -1,38 +1,62 @@
-#include "rl_control/RL_LQR_control_node.hpp"
+#include "rl_control/RL_LQT_control_node.hpp"
 
 /* Constructor */
-RLLQRController::RLLQRController(/* args */): 
+RLLQTController::RLLQTController(/* args */): 
 priv_handle("~"), dist(0.0, 0.2)
 {
     ROS_DEBUG("Constructor called.");
 
-    state_x = Eigen::VectorXd::Zero(2);
-    state_y = Eigen::VectorXd::Zero(2);
-    old_state_x = Eigen::VectorXd::Zero(2);
-    old_state_y = Eigen::VectorXd::Zero(2);
+         
+    Cmx <<
+    9.0000, 0, 0.2166, 0, 0.0005;
 
-    augmented_state_x = Eigen::VectorXd::Zero(3);
-    augmented_state_y = Eigen::VectorXd::Zero(3);
-    old_augmented_state_x = Eigen::VectorXd::Zero(3);
-    old_augmented_state_y = Eigen::VectorXd::Zero(3);
+    Cmy <<
+    2.0000, -0.2095, 0.0713, -0.0095, 0.0005;
+
+    Cd << 1, 0;
+
+
+    ref_msg = Eigen::VectorXd::Zero(5);
+
+    int n_state = 2;
+    int n_state_aug = n_state + ref_msg.size();
+    int n_state_aug_control = n_state + ref_msg.size() + 1;
+    int n_param = (n_state_aug_control)*(n_state_aug_control + 1)/2;
+
+    state_x = Eigen::VectorXd::Zero(n_state_aug);
+    state_y = Eigen::VectorXd::Zero(n_state_aug);
+    old_state_x = Eigen::VectorXd::Zero(n_state_aug);
+    old_state_y = Eigen::VectorXd::Zero(n_state_aug);
+
+    augmented_state_x = Eigen::VectorXd::Zero(n_state_aug_control);
+    augmented_state_y = Eigen::VectorXd::Zero(n_state_aug_control);
+    old_augmented_state_x = Eigen::VectorXd::Zero(n_state_aug_control);
+    old_augmented_state_y = Eigen::VectorXd::Zero(n_state_aug_control);
 
     //TODO: find a better way to choose the vector size
-    bar_x = Eigen::VectorXd::Zero(6);
-    bar_x = Eigen::VectorXd::Zero(6);
-    theta = Eigen::VectorXd::Zero(6);
+    bar_x = Eigen::VectorXd::Zero(n_param);
+    old_bar_x = Eigen::VectorXd::Zero(n_param);
+    bar_y = Eigen::VectorXd::Zero(n_param);
+    old_bar_y = Eigen::VectorXd::Zero(n_param);
 
-    theta << 55.3444, 20.9276, 1.0136, 38.5627, 0.9893, 1.0418;
 
-    Kx = Eigen::RowVectorXd::Zero(2);
-    Ky = Eigen::RowVectorXd::Zero(2);
-    kz = Eigen::RowVectorXd::Zero(2);
 
-    K0factor = 1.0/20.0;
-    THETA0factor = 0.4;
-    PRLS0factor=10e3;
-    Kx << 0.4880, 0.5139;
-    Ky <<  0.4880, 0.5139;
-    kz << 0, 0;
+    theta = Eigen::VectorXd::Zero(n_param);
+
+    theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
+
+    ROS_INFO_STREAM("theta init" << theta);
+
+    Kx = Eigen::RowVectorXd::Zero(n_state_aug);
+    Ky = Eigen::RowVectorXd::Zero(n_state_aug);
+    // kz = Eigen::RowVectorXd::Zero(n_state_aug);
+
+    K0factor = 1.0/10.0;
+    THETA0factor = 0.8;
+    PRLS0factor=10e6;
+    Kx << 0.5266, 0.2624, -4.6666, 0.0719, -0.1128, 0.0013, -0.0003;
+    Ky << 0.5266, 0.2624, -0.9052, 0.1117, -0.0309, 0.0050, -0.0003;
+    // kz << 0, 0;
 
     //initial gain
     Kx = Kx * K0factor; 
@@ -49,27 +73,33 @@ priv_handle("~"), dist(0.0, 0.2)
 }
 
 /* Destructor */
-RLLQRController::~RLLQRController()
+RLLQTController::~RLLQTController()
 {
 }
 
-void RLLQRController::configNode(){
+void RLLQTController::configNode()
+{
     configSubscribers();
     configPublishers();
 }
 
-void RLLQRController::configSubscribers(){
-    curPosSub = handle.subscribe("/dji_sdk/local_position", 1, &RLLQRController::receivePos, this);
-    curVelSub = handle.subscribe("/dji_sdk/velocity", 1, &RLLQRController::receiveVel, this);
+void RLLQTController::configSubscribers()
+{
+    curPosSub = handle.subscribe("/dji_sdk/local_position", 1, &RLLQTController::receivePos, this);
+    curVelSub = handle.subscribe("/dji_sdk/velocity", 1, &RLLQTController::receiveVel, this);
+    refGeneratorSub = handle.subscribe("/rl_control/ref_generator", 1, &RLLQTController::receiveRef, this);
+
 }
 
-void RLLQRController::configPublishers(){
+void RLLQTController::configPublishers()
+{
     vel_pub = handle.advertise<sensor_msgs::Joy>("/dji_sdk/flight_control_setpoint_generic", 1);
     reward_pub = handle.advertise<std_msgs::Float64>("/rl_control/reward", 1);
 
 }
 
-void RLLQRController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg){
+void RLLQTController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
+{
     if (msg){
         cur_pos.x() = msg->point.x; 
         cur_pos.y() = msg->point.y; 
@@ -79,7 +109,8 @@ void RLLQRController::receivePos(const geometry_msgs::PointStamped::ConstPtr& ms
     }
 }
 
-void RLLQRController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& msg){
+void RLLQTController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& msg)
+{
     if (msg)
     {
         cur_vel.x() = msg->vector.x;
@@ -89,8 +120,17 @@ void RLLQRController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& 
         flag_vel = true;
     }
 }
+void RLLQTController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg)
+{
+    
+    for (int i = 0; i < 5; i++) {
+        ref_msg(i) = msg->data[i];
+        // ROS_INFO("ref[%d] = %f", i, ref_msg(i));
+    }
+    flag_ref = true;
+}
 
-Eigen::VectorXd RLLQRController::fromx2xbar(const Eigen::VectorXd& x)
+Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
 {
     int n = x.size();
 
@@ -110,11 +150,10 @@ Eigen::VectorXd RLLQRController::fromx2xbar(const Eigen::VectorXd& x)
             xbar(k++) = x(i) * x(j);
         }
     }
-
     return -xbar;
 }
 
-Eigen::MatrixXd RLLQRController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
+Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
 {
 
     int N = (sizeOfAugState * (sizeOfAugState + 1))/2;
@@ -140,7 +179,6 @@ Eigen::MatrixXd RLLQRController::FromTHETAtoP(const Eigen::VectorXd& theta, int 
         }
     }
 
-
     Eigen::MatrixXd Pout1, Pout2, Pout;
 
     Pout1 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
@@ -154,7 +192,6 @@ Eigen::MatrixXd RLLQRController::FromTHETAtoP(const Eigen::VectorXd& theta, int 
         k++;
     }
 
-
     for (int i = sizeOfAugState; i < N; i++)
     {
         Pout2(indx(i, 0), indx(i, 1)) = theta(k)/2;
@@ -166,7 +203,7 @@ Eigen::MatrixXd RLLQRController::FromTHETAtoP(const Eigen::VectorXd& theta, int 
     return Pout; 
 }
 
-void RLLQRController::UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu)
+void RLLQTController::UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu)
 {
     
     double phiT_P_phi = phi[0].transpose() * prls * phi[0];
@@ -175,9 +212,11 @@ void RLLQRController::UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::Vecto
         theta = theta + (prls * phi[0] * Erls.x()) / (mu + phiT_P_phi);
         prls = (1.0/mu) * prls - (1.0/mu) * (prls * phi[0] * phi[0].transpose() * prls) / (mu + phiT_P_phi);
     }
+    ROS_INFO_STREAM("theta" << theta);
+
 }
 
-void RLLQRController::UpdateGain(Eigen::VectorXd& theta)
+void RLLQTController::UpdateGain(Eigen::VectorXd& theta)
 {
     // Recovering H from theta
     int z = augmented_state_x.size();
@@ -215,7 +254,7 @@ void RLLQRController::UpdateGain(Eigen::VectorXd& theta)
     }
 }
 
-Eigen::Vector3d RLLQRController::Excitation(double& t)
+Eigen::Vector3d RLLQTController::Excitation(double& t)
 {
     // white noise
     Eigen::Vector3d noise_white, noise_sin, excitation;
@@ -234,13 +273,11 @@ Eigen::Vector3d RLLQRController::Excitation(double& t)
     return excitation = noise_white + noise_sin;
 }
 
+void RLLQTController::sendCmdVel(double h){
 
-
-void RLLQRController::sendCmdVel(double h){
-
-    if (flag_pos && flag_vel)
+    if (flag_pos && flag_vel && flag_ref)
     {
-        double Q=1, R=1, gamma = 0.5, mu = 1.0;
+        double Qe=1, R=1, gamma = 0.5, mu = 1.0;
         static double t = 0.0;
         t += h;
 
@@ -255,9 +292,14 @@ void RLLQRController::sendCmdVel(double h){
             old_vel = cur_vel;
             flag_first_vel = false;
         }
+        if (flag_first_ref)
+        {
+            old_ref_msg = ref_msg;
+            flag_first_ref = false;
+        }
 
-        old_state_x << old_pos.x(), old_vel.x();
-        old_state_y << old_pos.y(), old_vel.y();
+        old_state_x << old_pos.x(), old_vel.x(), old_ref_msg;
+        old_state_y << old_pos.y(), old_vel.y(), old_ref_msg;
 
         old_u.x() = - Kx * old_state_x;
         old_u.y() = - Ky * old_state_y;
@@ -265,19 +307,18 @@ void RLLQRController::sendCmdVel(double h){
         old_augmented_state_x << old_state_x, old_u.x();
         old_augmented_state_y << old_state_y, old_u.y();
 
-
         Eigen::VectorXd old_bar_x(theta.size());
-
         old_bar_x = fromx2xbar(old_augmented_state_x);
+        old_bar_y = fromx2xbar(old_augmented_state_y);
 
-        state_x << cur_pos.x(), cur_vel.x();
-        state_y << cur_pos.y(), cur_vel.y();
+        state_x << cur_pos.x(), cur_vel.x(), ref_msg;
+        state_y << cur_pos.y(), cur_vel.y(), ref_msg;
+        
 
-        excitation = Excitation(t);
+        // excitation = Excitation(t);
 
-        u.x() = - Kx * state_x + excitation.x();
-        // u.y() = - Ky * state_y + excitation.y();
-        u.y() = 0.0;
+        u.x() = - Kx * state_x;
+        u.y() = - Ky * state_y;
         u.z() = 0.0;
 
         vel_msg.header.stamp = ros::Time::now();
@@ -286,37 +327,49 @@ void RLLQRController::sendCmdVel(double h){
 
         vel_pub.publish(vel_msg);
 
+
         augmented_state_x << state_x, u.x();
         augmented_state_y << state_x, u.y();
 
         Eigen::VectorXd bar_x(theta.size());
         bar_x = fromx2xbar(augmented_state_x);
+        bar_y = fromx2xbar(augmented_state_y);
         
         phi.resize(3);
 
         phi[0] = old_bar_x - gamma * bar_x;
-
+        phi[1] = old_bar_y - gamma * bar_y;
 
         //REWARD
 
-        reward.x() = - state_x.transpose() * Q * state_x - u.x() * R * u.x();
+        Cx << Cd, Cmx;
+        Cy << Cd, Cmy;
 
-        std_msgs::Float64 msg;
-        msg.data = reward.x();
-        reward_pub.publish(msg);
+        Qx = Cx.transpose() * Qe * Cx;
+        Qy = Cy.transpose() * Qe * Cy;
+
+
+        reward.x() = - state_x.transpose() * Qx * state_x - u.x() * R * u.x();
+        reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
+
+        ROS_INFO_STREAM("reward" << reward);
+
+        geometry_msgs::Vector3 reward_msg;
+        reward_msg.x = reward.x();
+        reward_msg.y = reward.y();
+        reward_pub.publish(reward_msg);
 
 
         //error
-
         Erls.x() = reward.x() - phi[0].transpose() * theta;
+        Erls.y() = reward.y() - phi[1].transpose() * theta;
+
         // ROS_INFO_STREAM("erls" << Erls); 
 
 
        
         // RLS
         UpdateRLS(theta, phi, Erls, prls, mu);
-        ROS_INFO_STREAM("theta" << theta); 
-
 
         if (countk > 50)
         {
@@ -337,9 +390,9 @@ void RLLQRController::sendCmdVel(double h){
 
 int main(int argc, char **argv){
 
-    ros::init(argc, argv, "RL_LQR_control_node");
+    ros::init(argc, argv, "RL_LQT_control_node");
     ROS_INFO("This node has started.");
-    RLLQRController nh;
+    RLLQTController nh;
 
     nh.configNode();
 

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rl_control)
+## set(CMAKE_CXX_STANDARD 17)
+## set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -145,6 +148,7 @@ add_executable(LQTI_control_node src/LQTI_control_node.cpp)
 add_executable(Reference_generator_node src/Reference_generator_node.cpp)
 add_executable(Model_system_node src/Model_system_node.cpp)
 add_executable(RL_LQR_control_node src/RL_LQR_control_node.cpp)
+add_executable(RL_LQT_control_node src/RL_LQT_control_node.cpp)
 
 
 
@@ -165,6 +169,8 @@ add_dependencies(LQTI_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_
 add_dependencies(Reference_generator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(Model_system_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(RL_LQR_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(RL_LQT_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 
 
 ## Specify libraries to link a library or executable target against
@@ -177,7 +183,6 @@ target_link_libraries(LQT_control_node
 target_link_libraries(LQTI_control_node
   ${catkin_LIBRARIES}
 )
-
 target_link_libraries(Reference_generator_node
   ${catkin_LIBRARIES}
 )
@@ -185,6 +190,9 @@ target_link_libraries(Model_system_node
   ${catkin_LIBRARIES}
 )
 target_link_libraries(RL_LQR_control_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(RL_LQT_control_node
   ${catkin_LIBRARIES}
 )
 #############
