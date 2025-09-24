@@ -16,11 +16,11 @@
 #include <eigen3/Eigen/Core>
 #include <random>
 #include <std_srvs/SetBool.h>
-#include <random>
 #include <eigen3/Eigen/LU>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Sparse>
 #include <utility>
 #include <std_msgs/Float64MultiArray.h>
-
 
 class RLLQTController
 {
@@ -72,11 +72,18 @@ private:
     Eigen::Matrix<double, 1, 7> Cy;
     Eigen::Matrix<double, 7, 7> Qx;
     Eigen::Matrix<double, 7, 7> Qy;
-
+    Eigen::Matrix<double, 2, 2> Ad;
+    Eigen::Matrix<double, 2, 1> Bd;
+    Eigen::Matrix<double, 5, 5> Am;
+    Eigen::Matrix<double, 5, 1> Bm;
+    Eigen::MatrixXd Aa;
+    Eigen::MatrixXd Ba;
+    Eigen::MatrixXd A_dlyap;
+    Eigen::MatrixXd Q_dlyap;
 
     
     double K0factor, THETA0factor, PRLS0factor;
-    double countk;
+    double countk, inv_scalar;
     
     // bool control_enabled = false;
     bool flag_first_pos = true;
@@ -85,10 +92,8 @@ private:
     bool flag_pos = false;
     bool flag_vel = false;
     bool flag_ref = false;
-    bool gain_update = false;
-    bool dlyap = false;
-
-
+    bool gain_update = true;
+    bool dlyap_flag = true;
 
     
     sensor_msgs::Joy vel_msg;
@@ -106,7 +111,12 @@ public:
     Eigen::VectorXd fromx2xbar(const Eigen::VectorXd& v);
     Eigen::MatrixXd FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState);
     Eigen::Vector3d Excitation(double& t);
+    Eigen::MatrixXd dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q);
+    Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
+    Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
+                               int max_iter = 1000, double tol = 1e-12);
     void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
-    void UpdateGain(Eigen::VectorXd& theta);
+    void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
+
 };
