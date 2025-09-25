@@ -496,7 +496,7 @@ void RLLQTController::sendCmdVel(double h){
         // Update param
         old_augmented_state_x = augmented_state_x;
         // old_augmented_state_y = augmented_state_y;
-        
+        old_state_x = state_x;
         old_u = u;
         rl = true;
 
