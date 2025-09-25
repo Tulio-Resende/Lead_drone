@@ -41,6 +41,7 @@ private:
         ros::Publisher vel_pub;
         ros::Publisher reward_pub;
         ros::Publisher gain_pub;
+        
     
     // void configService();
     //     ros::ServiceServer enable_service;
@@ -57,7 +58,6 @@ private:
     std::vector<Eigen::MatrixXd> H;
     Eigen::MatrixXd prls;
     Eigen::Vector3f u, old_u;
-    Eigen::Vector3d old_pos, old_vel, old_ref;
     Eigen::Vector3d Erls, reward;
 
 
@@ -93,10 +93,14 @@ private:
     bool flag_vel = false;
     bool flag_ref = false;
     bool gain_update = true;
-    bool dlyap_flag = true;
+    bool dlyap_flag = false;
+    bool rl = false;
+
 
     
     sensor_msgs::Joy vel_msg;
+    std_msgs::Float64MultiArray gain_msg;
+
 
 public:
 

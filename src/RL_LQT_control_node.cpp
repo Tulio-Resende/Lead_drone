@@ -68,29 +68,27 @@ priv_handle("~"), dist(0.0, 0.2)
     bar_y = Eigen::VectorXd::Zero(n_param);
     old_bar_y = Eigen::VectorXd::Zero(n_param);
 
-
-
     theta = Eigen::VectorXd::Zero(n_param);
-
     theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
 
     Kx = Eigen::RowVectorXd::Zero(n_state_aug);
     Ky = Eigen::RowVectorXd::Zero(n_state_aug);
     // kz = Eigen::RowVectorXd::Zero(n_state_aug);
 
-    K0factor = 1.0/10.0*10.0;
-    THETA0factor = 0.8/0.8;
+    K0factor = 1.0/20.0;
+    THETA0factor = 0.8;
     PRLS0factor=10e-6;
-    Kx << 0.5266, 0.2624, -4.6666, 0.0719, -0.1128, 0.0013, -0.0003;
+    Kx << 0.526620279669378,	0.262442002550444,	-4.66660887607784,	0.0718605138143464,	-0.112756794852737,	0.00130992082259127,	-0.000285134518981841;
+    // Kx << 0.5266, 0.2624, -4.6666, 0.0719, -0.1128, 0.0013, -0.0003;
     Ky << 0.5266, 0.2624, -0.9052, 0.1117, -0.0309, 0.0050, -0.0003;
     // kz << 0, 0;
 
     //initial gain
     Kx = Kx * K0factor; 
     // Ky = Ky * K0factor;
-    
 
     ROS_INFO_STREAM("Initial Kx" << Kx);
+    ROS_INFO_STREAM("Initial Ky" << Ky);
 
     theta = theta * THETA0factor;
 
@@ -122,6 +120,8 @@ void RLLQTController::configPublishers()
 {
     vel_pub = handle.advertise<sensor_msgs::Joy>("/dji_sdk/flight_control_setpoint_generic", 1);
     reward_pub = handle.advertise<std_msgs::Float64>("/rl_control/reward", 1);
+    gain_pub = handle.advertise<std_msgs::Float64MultiArray>("/rl_control/gain", 1);
+
 
 }
 
@@ -268,10 +268,19 @@ void RLLQTController::UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& 
                 switch(gain_update)
                 {
                 case 1:
+                    ROS_INFO_STREAM("TA ENTRANDO AQUI");
                     Kx = inv_scalar*H[0].row(z-1).segment(0,z-1);
                     ROS_INFO_STREAM("Updated Kx: " << Kx);
-                    H[0] = dlyap_iterative(A_dlyap, Q_dlyap);
-                    ROS_INFO_STREAM("H: \n" << H[0]);
+                    // H[0] = dlyap_iterative(A_dlyap, Q_dlyap);
+                    // ROS_INFO_STREAM("H: \n" << H[0]);
+
+                                
+                    gain_msg.data.resize(state_x.size());
+                    for (int i = 0; i < state_x.size(); i++) 
+                    {
+                        gain_msg.data[i] = Kx[i];  
+                    }
+        gain_pub.publish(gain_msg); 
                     break;
                 default:
                     Eigen::RowVectorXd K_diff;
@@ -383,48 +392,14 @@ void RLLQTController::sendCmdVel(double h){
 
     if (flag_pos && flag_vel && flag_ref)
     {
-        double Qe=1, R=1, gamma = 0.5, mu = 1.0;
+        double gamma = 0.5, mu = 1.0, Qe = 1, R = 1;
         static double t = 0.0;
         t += h;
 
-        if (flag_first_pos)
-        {
-            old_pos = cur_pos;
-            flag_first_pos = false;
-        }
-        if (flag_first_vel)
-        {
-            old_vel = cur_vel;
-            flag_first_vel = false;
-        }
-        if (flag_first_ref)
-        {
-            old_ref_msg = ref_msg;
-            flag_first_ref = false;
-        }
-
-        // x_{k-1}
-        old_state_x << old_pos.x(), old_vel.x(), old_ref_msg;
-        old_state_y << old_pos.y(), old_vel.y(), old_ref_msg;
-
-        // u_{k-1}
-        old_u.x() = - Kx * old_state_x;
-        old_u.y() = - Ky * old_state_y;
-        old_u.z() = 0.0;
-
-        // L_{k-1}
-        old_augmented_state_x << old_state_x, old_u.x();
-        old_augmented_state_y << old_state_y, old_u.y();
-        ROS_INFO_STREAM("old aug" << old_augmented_state_x);
-
-        // Bar_L_{k-1}
-        Eigen::VectorXd old_bar_x(theta.size());
-        old_bar_x = fromx2xbar(old_augmented_state_x);
-        old_bar_y = fromx2xbar(old_augmented_state_y);
-
-        // x_{k}
+         // x_{k}
         state_x << cur_pos.x(), cur_vel.x(), ref_msg;
         state_y << cur_pos.y(), cur_vel.y(), ref_msg;
+
 
         // u_{k}
         u.x() = - Kx * state_x;
@@ -433,99 +408,101 @@ void RLLQTController::sendCmdVel(double h){
 
         // L_{k}
         augmented_state_x << state_x, u.x();
-        augmented_state_y << state_x, u.y();
-        ROS_INFO_STREAM("aug" << augmented_state_x);
+        // augmented_state_y << state_x, u.y();
+        // ROS_INFO_STREAM("aug" << augmented_state_x);
+        // ROS_INFO_STREAM("old aug" << old_augmented_state_x);
 
-        // Bar_L_{k}
-        Eigen::VectorXd bar_x(theta.size());
-        bar_x = fromx2xbar(augmented_state_x);
-        bar_y = fromx2xbar(augmented_state_y);
-        
-        phi.resize(3);
+        if(rl)
+        {
+            // Bar_L_{k-1}
+            Eigen::VectorXd old_bar_x(theta.size());
+            old_bar_x = fromx2xbar(old_augmented_state_x);
+            // old_bar_y = fromx2xbar(old_augmented_state_y);
 
-        // Phi
-        phi[0] = old_bar_x - gamma * bar_x;
-        phi[1] = old_bar_y - gamma * bar_y;
+            // Bar_L_{k}
+            Eigen::VectorXd bar_x(theta.size());
+            bar_x = fromx2xbar(augmented_state_x);
+            // bar_y = fromx2xbar(augmented_state_y);
 
+            phi.resize(3);
 
-        // Reward
-        reward.x() = - old_state_x.transpose() * Qx * old_state_x - old_u.x() * R * old_u.x();
-        // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
-        // ROS_INFO_STREAM("reward x"  << reward.x());
-
-        // Reward Pub
-        geometry_msgs::Vector3 reward_msg;
-        reward_msg.x = reward.x();
-        reward_msg.y = reward.y();
-        reward_pub.publish(reward_msg);
-
-        // ROS_INFO_STREAM("theta" << theta); 
-        // ROS_INFO_STREAM("Kx" << Kx); 
+            // Phi
+            phi[0] = old_bar_x - pow(gamma, h) * bar_x;
+            // phi[1] = old_bar_y - gamma * bar_y;
 
 
-        // error
-        Erls.x() = reward.x() - phi[0].transpose() * theta;
-        Erls.y() = reward.y() - phi[1].transpose() * theta;
-        ROS_INFO_STREAM("erls" << Erls.x());
-        
-             
-        // Update old pos
-        old_pos = cur_pos;
+            // Reward
+            reward.x() = - old_state_x.transpose() * Qx * old_state_x - old_u.x() * R * old_u.x();
+            // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
+            // ROS_INFO_STREAM("reward x"  << reward.x());
 
-        //Update old vel
-        old_vel = cur_vel;
+            // Reward Pub
+            geometry_msgs::Vector3 reward_msg;
+            reward_msg.x = reward.x();
+            reward_msg.y = reward.y();
+            reward_pub.publish(reward_msg);
 
-        // Update old ref
-        old_ref_msg = ref_msg;
+            // error
+            Erls.x() = reward.x() - phi[0].transpose() * theta;
+            // Erls.y() = reward.y() - phi[1].transpose() * theta;
+            ROS_INFO_STREAM("erls" << Erls.x());
 
+            // RLS
+            UpdateRLS(theta, phi, Erls, prls, mu);
+
+            if (countk > 100)
+            {
+                UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
+                double left_value = (-old_augmented_state_x.transpose()*H[0]*old_augmented_state_x);
+                double right_quadratic = (augmented_state_x.transpose()*H[0]*augmented_state_x);
+                double right_value = reward.x() - pow(gamma, h) * right_quadratic;
+
+                // ROS_INFO("Left side: %f", left_value);
+                // ROS_INFO("Right side: %f", right_value);
+                // ROS_INFO("Difference: %f", left_value - right_value);
+            
+            }
+
+        }
+   
         // Control Signal Pub
         vel_msg.header.stamp = ros::Time::now();
         vel_msg.header.frame_id = "ground_ENU";
-        vel_msg.axes = {old_u.x(), old_u.y(), old_u.z(), 0.0f, 73};
+        vel_msg.axes = {u.x(), u.y(), u.z(), 0.0f, 73};
         vel_pub.publish(vel_msg);
 
-        // Aug C
-        Cx << Cd, -Cmx;
-        Cy << Cd, -Cmy;
 
-        // Modifield Q LQR
-        Qx = Cx.transpose() * Qe * Cx;
-        Qy = Cy.transpose() * Qe * Cy;
+        
+        // // Aug C
+        // Cx << Cd, -Cmx;
+        // Cy << Cd, -Cmy;
 
-        // Test Dlyap                            
-        A_dlyap.topLeftCorner(7, 7) = Aa;
-        A_dlyap.topRightCorner(7, 1) = Ba;
-        A_dlyap.bottomLeftCorner(1, 7) = -Kx*Aa;
-        A_dlyap.bottomRightCorner(1, 1) = -Kx*Ba;
-        Q_dlyap.block<7,7>(0,0) = Qx;  
-        Q_dlyap(7,7) = R;
+        // // Modifield Q LQR
+        // Qx = Cx.transpose() * Qe * Cx;
+        // Qy = Cy.transpose() * Qe * Cy;
 
+        // // Test Dlyap                            
+        // A_dlyap.topLeftCorner(7, 7) = Aa;
+        // A_dlyap.topRightCorner(7, 1) = Ba;
+        // A_dlyap.bottomLeftCorner(1, 7) = -Kx*Aa;
+        // A_dlyap.bottomRightCorner(1, 1) = -Kx*Ba;
+        // Q_dlyap.block<7,7>(0,0) = Qx;  
+        // Q_dlyap(7,7) = R;
+
+       
         // ROS_INFO_STREAM("Q_dlyap \n" << Q_dlyap);
         // ROS_INFO_STREAM("A_dlyap \n" << A_dlyap);
 
-
-
-
-        // RLS
-        // UpdateRLS(theta, phi, Erls, prls, mu);
-
-        // if (countk > 100)
-        // {
-        //     UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
-        //     double left_value = (-old_augmented_state_x.transpose()*H[0]*old_augmented_state_x);
-        //     double right_quadratic = (augmented_state_x.transpose()*H[0]*augmented_state_x);
-        //     double right_value = reward.x() - gamma * right_quadratic;
-
-        //     // ROS_INFO("Left side: %f", left_value);
-        //     // ROS_INFO("Right side: %f", right_value);
-        //     // ROS_INFO("Difference: %f", left_value - right_value);
-          
-        // }
-
-
- 
+        // Update param
+        old_augmented_state_x = augmented_state_x;
+        // old_augmented_state_y = augmented_state_y;
+        
+        old_u = u;
+        rl = true;
 
         countk++;
+
+     
 
     }
 
