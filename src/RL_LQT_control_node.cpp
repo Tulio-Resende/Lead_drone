@@ -68,18 +68,78 @@ priv_handle("~"), dist(0.0, 0.2)
     bar_y = Eigen::VectorXd::Zero(n_param);
     old_bar_y = Eigen::VectorXd::Zero(n_param);
 
+    u_p = Eigen::VectorXd::Zero(36);
+    N = Eigen::MatrixXd::Zero(36,15);
+    ROS_INFO_STREAM("u_p" << u_p);
+    ROS_INFO_STREAM("N" << N);
+
+    u_p << -0.0001, -1.1845, 1.2695, 1.6097, -0.0768, 0.0000, 0.0000, 1.0308,
+       -0.0238, -0.1990, -0.1103, -0.0065, -0.0022, 0.0003, -0.9151,
+       -19.8014, -10.9792, -0.6509, -0.2236, 0.0337,
+       -91.0551, -2.0276, -1.5823, 0.1939, 0.2745,
+       -11.1943, -0.0336, 0.0152, -0.0092, -0.1084,
+       0.0052, 0.0066, -0.2748, -0.0002, -0.0025, 0.0002;
+    ROS_INFO_STREAM("u_p" << u_p);
+    N << 
+-0.0519, 0.5594, -0.2841, -0.3758, -0.1439, -0.2856, -0.3313, 0.4850, -0.0568, -0.0010, 0.0478, -0.0144, 0.0423, -0.0773, -0.0402,
+ 0.0184, -0.2026, 0.1403, -0.0190, -0.1929, 0.0673, -0.8902, -0.3086, 0.0582, -0.0019, -0.0629, 0.0379, 0.0035, -0.0031, 0.0086,
+-0.0048, 0.0140, -0.0162, -0.0280, -0.0139, -0.0124, -0.0362, 0.0002, -0.3852, 0.3996, 0.1772, 0.1194, -0.5718, 0.3529, 0.4377,
+-0.0001, 0.0027, -0.0027, -0.0057, -0.0030, -0.0025, 0.0056, -0.0234, -0.0633, 0.0334, 0.0078, 0.0451, 0.0918, -0.0266, 0.0402,
+ 0.0003, -0.0006, 0.0014, 0.0030, 0.0029, 0.0011, -0.0026, 0.0123, 0.0121, -0.0032, -0.0188, -0.0005, 0.0023, 0.0390, -0.0081,
+ 0.0000, 0.0000, -0.0000, -0.0000, 0.0000, 0.0000, 0.0000, -0.0001, -0.0009, 0.0001, -0.0007, 0.0005, 0.0007, -0.0001, 0.0002,
+ 0.0000, -0.0000, 0.0000, 0.0000, 0.0000, 0.0000, -0.0000, 0.0000, 0.0000, -0.0000, 0.0000, -0.0001, -0.0000, 0.0000, -0.0000,
+ 0.0000, -0.0001, 0.0001, -0.0000, -0.0001, 0.0000, -0.0006, -0.0002, 0.0001, -0.0000, -0.0001, 0.0000, -0.0000, -0.0000, 0.0000,
+ 0.7506, 0.3172, 0.5222, -0.1953, 0.1426, 0.0440, 0.0192, -0.0473, 0.0131, 0.0016, 0.0073, 0.0037, -0.0086, 0.0023, 0.0054,
+ 0.0424, 0.2296, 0.0065, 0.5641, 0.1678, -0.7321, -0.0687, -0.2380, 0.0239, -0.0059, -0.0164, 0.0054, -0.0172, 0.0233, -0.0012,
+ 0.0245, 0.5163, -0.2402, 0.5148, 0.1220, 0.6097, -0.1358, -0.0410, -0.0036, 0.0138, 0.0505, -0.0024, 0.0074, -0.0205, 0.0086,
+ 0.6258, -0.2440, -0.5888, 0.1218, -0.4225, -0.0509, 0.0653, -0.0056, 0.0065, -0.0056, -0.0315, 0.0030, -0.0031, 0.0245, -0.0098,
+ 0.1429, -0.1667, -0.4300, -0.2672, 0.8096, -0.0130, -0.1539, -0.1236, 0.0133, -0.0007, 0.0054, 0.0118, -0.0100, -0.0044, -0.0161,
+-0.0778, 0.1939, -0.0905, -0.2164, -0.1304, 0.0026, 0.1028, -0.4811, -0.2927, -0.0138, 0.2114, 0.1042, -0.0604, 0.2503, -0.6592,
+ 0.0019, -0.0070, 0.0076, 0.0136, 0.0073, -0.0001, 0.0123, 0.0220, 0.1896, 0.8614, -0.2532, -0.1732, 0.0107, -0.1836, -0.3049,
+-0.1109, 0.3090, -0.1641, -0.3065, -0.1473, -0.0070, 0.1692, -0.5226, 0.3546, -0.0199, -0.3193, -0.0907, -0.0221, 0.0355, 0.4057,
+ 0.0001, -0.0069, 0.0014, -0.0070, -0.0072, -0.0070, 0.0079, -0.0205, -0.0317, -0.0196, 0.0192, 0.0267, -0.1053, -0.1664, -0.0110,
+-0.0068, 0.0102, 0.0061, 0.0006, 0.0115, 0.0051, -0.0034, 0.0087, -0.0854, -0.0152, -0.1505, -0.0443, 0.0525, 0.0865, 0.0046,
+-0.0036, 0.0043, 0.0020, -0.0004, -0.0107, -0.0022, 0.0088, 0.0054, 0.0822, 0.0345, 0.0512, 0.1747, 0.0276, 0.0026, 0.0067,
+ 0.0016, -0.0049, 0.0023, 0.0039, 0.0016, 0.0007, -0.0063, 0.0073, 0.0083, -0.0229, 0.0091, -0.1088, -0.0460, 0.0019, -0.0074,
+ 0.0235, -0.0649, 0.0329, 0.0636, 0.0330, 0.0012, -0.0260, 0.1138, -0.0846, 0.0098, 0.0934, 0.0109, 0.0218, 0.0107, -0.0698,
+-0.0036, 0.0124, 0.0087, 0.0314, 0.0187, 0.0238, 0.0111, 0.0916, 0.0159, -0.2371, -0.5103, 0.3053, -0.6420, -0.2928, -0.2459,
+ 0.0052, -0.0116, 0.0274, 0.0612, 0.0606, 0.0231, -0.0520, 0.2489, 0.2250, -0.0545, -0.3985, 0.0221, 0.0613, 0.7999, -0.1545,
+-0.0085, -0.0111, -0.0033, -0.0065, -0.0180, -0.0105, 0.0004, 0.0596, 0.7184, 0.0227, 0.5336, 0.2137, -0.2915, 0.0687, -0.1014,
+ 0.0069, -0.0242, 0.0115, 0.0136, 0.0020, 0.0059, -0.0424, 0.0200, 0.0426, -0.1845, 0.0902, -0.8637, -0.3732, 0.0356, -0.1123,
+-0.0000, 0.0002, -0.0003, -0.0001, 0.0002, -0.0002, 0.0012, 0.0002, -0.0008, 0.0016, 0.0026, -0.0012, 0.0020, 0.0018, 0.0016,
+-0.0003, 0.0017, -0.0009, -0.0014, -0.0011, -0.0001, 0.0032, -0.0074, -0.0239, 0.0012, -0.0147, 0.0288, -0.0006, -0.0345, 0.0046,
+ 0.0001, 0.0010, -0.0002, -0.0002, 0.0005, 0.0002, 0.0011, -0.0026, -0.0249, 0.0040, -0.0194, 0.0143, 0.0193, -0.0033, 0.0064,
+-0.0002, 0.0008, -0.0004, -0.0004, -0.0001, -0.0002, 0.0014, -0.0006, -0.0014, 0.0060, -0.0029, 0.0280, 0.0120, -0.0012, 0.0036,
+-0.0000, 0.0001, -0.0001, -0.0002, -0.0002, -0.0000, 0.0002, -0.0007, -0.0007, -0.0005, 0.0003, 0.0006, -0.0027, -0.0042, -0.0001,
+-0.0002, -0.0003, -0.0001, -0.0002, -0.0005, -0.0003, 0.0000, 0.0013, 0.0171, 0.0006, 0.0130, 0.0051, -0.0070, 0.0012, -0.0023,
+ 0.0002, -0.0006, 0.0003, 0.0003, 0.0001, 0.0001, -0.0010, 0.0005, 0.0011, -0.0045, 0.0022, -0.0211, -0.0091, 0.0009, -0.0028,
+ 0.0001, 0.0000, 0.0001, 0.0002, 0.0003, 0.0001, -0.0001, 0.0005, -0.0023, -0.0003, -0.0035, -0.0010, 0.0014, 0.0022, -0.0001,
+-0.0000, 0.0000, -0.0000, -0.0000, -0.0000, -0.0000, 0.0000, -0.0000, 0.0000, 0.0001, -0.0000, 0.0005, 0.0002, -0.0000, 0.0001,
+-0.0001, 0.0001, -0.0001, -0.0001, -0.0001, -0.0001, 0.0002, 0.0001, 0.0021, 0.0009, 0.0013, 0.0043, 0.0007, 0.0001, 0.0002,
+ 0.0000, -0.0001, 0.0000, 0.0000, 0.0000, 0.0000, -0.0001, 0.0001, 0.0001, -0.0006, 0.0003, -0.0027, -0.0012, 0.0001, -0.0004;
+    
     theta = Eigen::VectorXd::Zero(n_param);
+    alpha = Eigen::VectorXd::Zero(15);
+
     theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
+    alpha << -13.0999772196331, -67.9763961021685, -35.8240110287052, -344.065827192036, -106.035875684254, 284.221578905001,-183.443454278577, 250.413710818642, -1669.91124815472, 1685.55702611508, 792.646825267457, 502.901989343099, -2347.31579553679, 1548.98241544928, 1753.15081058907;
+
+    Eigen::VectorXd test = Eigen::VectorXd::Zero(32);
+
+    test = u_p + N * alpha;
+    ROS_INFO_STREAM("test" << test);
+
 
     Kx = Eigen::RowVectorXd::Zero(n_state_aug);
     Ky = Eigen::RowVectorXd::Zero(n_state_aug);
     // kz = Eigen::RowVectorXd::Zero(n_state_aug);
 
-    K0factor = 1.0/20.0;
+    K0factor = 1.0/20.0*20.0;
     THETA0factor = 0.8;
+    ALPHA0factor = 0.8;
+
     PRLS0factor=10e-6;
     Kx << 0.526620279669378,	0.262442002550444,	-4.66660887607784,	0.0718605138143464,	-0.112756794852737,	0.00130992082259127,	-0.000285134518981841;
-    // Kx << 0.5266, 0.2624, -4.6666, 0.0719, -0.1128, 0.0013, -0.0003;
     Ky << 0.5266, 0.2624, -0.9052, 0.1117, -0.0309, 0.0050, -0.0003;
     // kz << 0, 0;
 
@@ -91,10 +151,15 @@ priv_handle("~"), dist(0.0, 0.2)
     ROS_INFO_STREAM("Initial Ky" << Ky);
 
     theta = theta * THETA0factor;
+    alpha = alpha * ALPHA0factor;
+
+    ROS_INFO_STREAM("initial alpha" << alpha);
+
 
     countk = 0;
-
     prls = Eigen::MatrixXd::Identity(theta.size(),theta.size()) * PRLS0factor;
+
+    // prls = Eigen::MatrixXd::Identity(alpha.size(),alpha.size()) * PRLS0factor;
 }
 
 /* Destructor */
@@ -180,6 +245,29 @@ Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
     return -xbar;
 }
 
+// Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
+// {
+//     int n = x.size();
+
+//     int m = n + (n* (n-1))/2;
+//     Eigen::VectorXd xbar(m);
+    
+//     int k = 0;
+
+//     for (int i = 0; i < n; i++) 
+//     {
+//         xbar(k++) = x(i) * x(i);
+//     }
+
+//     for (int i = 0; i < n - 1; i++) {
+//         for (int j = i + 1; j < n; j++) 
+//         {
+//             xbar(k++) = x(i) * x(j);
+//         }
+//     }
+//     return -xbar;
+// }
+
 Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
 {
 
@@ -230,9 +318,68 @@ Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int 
     return Pout; 
 }
 
+// Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
+// {
+
+//     int N = (sizeOfAugState * (sizeOfAugState + 1))/2;
+
+//     Eigen::MatrixXd indx(N, 2);
+
+//     int count = 0;
+
+//     for (int i = 0; i < sizeOfAugState; i++)
+//     {
+//         indx(count, 0) = i;
+//         indx(count, 1) = i; 
+//         count++;
+//     }
+  
+//     for(int i = 0; i < sizeOfAugState; i++)
+//     {
+//         for(int j = i+1; j < sizeOfAugState; j++)
+//         {   
+//             indx(count, 0) = i;
+//             indx(count, 1) = j; 
+//             count++;
+//         }
+//     }
+
+//     Eigen::MatrixXd Pout1, Pout2, Pout;
+
+//     Pout1 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
+//     Pout2 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
+//     Pout  = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
+//     int k = 0;
+
+//     for (int i = 0; i < sizeOfAugState; i++)
+//     {
+//         Pout1(indx(i, 0), indx(i, 1)) = theta(k);
+//         k++;
+//     }
+
+//     for (int i = sizeOfAugState; i < N; i++)
+//     {
+//         Pout2(indx(i, 0), indx(i, 1)) = theta(k);
+//         k++;
+//     }
+
+//     Pout = Pout1 + Pout2 + Pout2.transpose();
+
+//     return Pout; 
+// }
+
+// void RLLQTController::UpdateRLS(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu)
+// {
+//     double phiT_P_phi = phi[0].transpose()* N * prls * N.transpose()* phi[0];
+//     if (phiT_P_phi > 1e-12) 
+//     {
+//         alpha = alpha + (prls * N.transpose() * phi[0] * Erls.x()) / (mu + phiT_P_phi);
+//         prls = (1.0/mu) * prls - (1.0/mu) * (prls * N.transpose() * phi[0] * phi[0].transpose() * N * prls) / (mu + phiT_P_phi);
+//     }
+// }
+
 void RLLQTController::UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu)
 {
-    
     double phiT_P_phi = phi[0].transpose() * prls * phi[0];
     if (phiT_P_phi > 1e-6) // evita divisões por zero ou muito pequenas
     {
@@ -240,7 +387,6 @@ void RLLQTController::UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::Vecto
         prls = (1.0/mu) * prls - (1.0/mu) * (prls * phi[0] * phi[0].transpose() * prls) / (mu + phiT_P_phi);
     }
     // ROS_INFO_STREAM("theta" << theta);
-
 }
 
 void RLLQTController::UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap)
@@ -280,7 +426,7 @@ void RLLQTController::UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& 
                     {
                         gain_msg.data[i] = Kx[i];  
                     }
-        gain_pub.publish(gain_msg); 
+                    gain_pub.publish(gain_msg); 
                     break;
                 default:
                     Eigen::RowVectorXd K_diff;
@@ -299,7 +445,7 @@ void RLLQTController::UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& 
                 break;
         }
 
-        countk = 1;
+        countk = 0;
     }
     else
     {
@@ -371,21 +517,56 @@ Eigen::MatrixXd RLLQTController::dlyap(const Eigen::MatrixXd& A, const Eigen::Ma
 
 Eigen::Vector3d RLLQTController::Excitation(double& t)
 {
-    // white noise
+    // // white noise
     Eigen::Vector3d noise_white, noise_sin, excitation;
 
-    noise_white.x() = dist(generator);
+    // noise_white.x() = dist(generator);
 
-    // sinuidal noise
+    // // sinuidal noise
 
-    noise_sin.x() =   0.5 * sin(2*M_PI*0.5*t)
-                    + 0.4 * sin(2*M_PI*2.0*t)
-                    + 0.3 * sin(2*M_PI*5.0*t)
-                    + 0.2 * sin(2*M_PI*7.0*t);
+    // noise_sin.x() =   0.5 * sin(2*M_PI*0.5*t)
+    //                 + 0.4 * sin(2*M_PI*2.0*t)
+    //                 + 0.3 * sin(2*M_PI*5.0*t)
+    //                 + 0.2 * sin(2*M_PI*7.0*t);
 
+    std::default_random_engine generator;
+    std::normal_distribution<double> white_dist{0.0, 1.0}; // unit variance, escalar depois
+    std::vector<double> sine_freqs = {0.2, 0.5, 1.0, 2.5}; // Hz
+    std::vector<double> sine_amps  = {0.12, 0.08, 0.05, 0.03}; // amplitudes
+    double exc = 0.0;
+    // soma de senóides
+    for (size_t i=0;i<sine_freqs.size();++i) {
+        exc += sine_amps[i] * sin(2.0*M_PI * sine_freqs[i] * t + 0.0 /*fase opcional*/);
+    }
+    // ruído branco filtrado (simples: ruído baixo-pass via média móvel)
+    double white = white_dist(generator) * 0.05; // escala do ruído
+    // opcional: filtro simples (exponential lowpass)
+    static double lp_prev = 0.0;
+    double alpha = 0.1; // 0..1 (menor = mais filtrado)
+    lp_prev = alpha * white + (1.0 - alpha) * lp_prev;
+    exc += lp_prev;
+
+    // opcional: adicionar PRBS (simples)
+    // static double prbs_last = 0; static double prbs_tlast = 0;
+    // if (t - prbs_tlast > prbs_step) { prbs_last = (rand()&1)? +amp : -amp; prbs_tlast = t; } exc += prbs_last;
+
+    excitation.x() = exc;
     
     // ROS_INFO_STREAM("excitation" << excitation);
-    return excitation = noise_white + noise_sin;
+    return excitation;
+}
+
+void RLLQTController::Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Qe, double& R)
+{
+     reward.x() = - old_state.transpose() * Qx * old_state - old_u.x() * R * old_u.x();
+    // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
+    // ROS_INFO_STREAM("reward x"  << reward.x());
+
+    // Reward Pub
+    geometry_msgs::Vector3 reward_msg;
+    reward_msg.x = reward.x();
+    reward_msg.y = reward.y();
+    reward_pub.publish(reward_msg);
 }
 
 void RLLQTController::sendCmdVel(double h){
@@ -402,15 +583,12 @@ void RLLQTController::sendCmdVel(double h){
 
 
         // u_{k}
-        u.x() = - Kx * state_x;
+        u.x() = - Kx * state_x + excitation.x();
         u.y() = - Ky * state_y;
         u.z() = 0.0;
 
         // L_{k}
         augmented_state_x << state_x, u.x();
-        // augmented_state_y << state_x, u.y();
-        // ROS_INFO_STREAM("aug" << augmented_state_x);
-        // ROS_INFO_STREAM("old aug" << old_augmented_state_x);
 
         if(rl)
         {
@@ -424,26 +602,17 @@ void RLLQTController::sendCmdVel(double h){
             bar_x = fromx2xbar(augmented_state_x);
             // bar_y = fromx2xbar(augmented_state_y);
 
-            phi.resize(3);
-
             // Phi
+            phi.resize(3);
             phi[0] = old_bar_x - pow(gamma, h) * bar_x;
             // phi[1] = old_bar_y - gamma * bar_y;
 
-
             // Reward
-            reward.x() = - old_state_x.transpose() * Qx * old_state_x - old_u.x() * R * old_u.x();
-            // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
-            // ROS_INFO_STREAM("reward x"  << reward.x());
-
-            // Reward Pub
-            geometry_msgs::Vector3 reward_msg;
-            reward_msg.x = reward.x();
-            reward_msg.y = reward.y();
-            reward_pub.publish(reward_msg);
+            Calc_reward(old_state_x, old_u, Qe, R);
 
             // error
-            Erls.x() = reward.x() - phi[0].transpose() * theta;
+            // Erls.x() = reward.x() - phi[0].transpose() * u_p - phi[0].transpose() * N * alpha;
+            Erls.x() = reward.x() -  phi[0].transpose() * theta;
             // Erls.y() = reward.y() - phi[1].transpose() * theta;
             ROS_INFO_STREAM("erls" << Erls.x());
 
@@ -452,14 +621,9 @@ void RLLQTController::sendCmdVel(double h){
 
             if (countk > 100)
             {
+                // theta = u_p + N*alpha;
+                ROS_INFO_STREAM("theta"<< theta);
                 UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
-                double left_value = (-old_augmented_state_x.transpose()*H[0]*old_augmented_state_x);
-                double right_quadratic = (augmented_state_x.transpose()*H[0]*augmented_state_x);
-                double right_value = reward.x() - pow(gamma, h) * right_quadratic;
-
-                // ROS_INFO("Left side: %f", left_value);
-                // ROS_INFO("Right side: %f", right_value);
-                // ROS_INFO("Difference: %f", left_value - right_value);
             
             }
 
@@ -471,9 +635,7 @@ void RLLQTController::sendCmdVel(double h){
         vel_msg.axes = {u.x(), u.y(), u.z(), 0.0f, 73};
         vel_pub.publish(vel_msg);
 
-
-        
-        // // Aug C
+        // Aug C
         // Cx << Cd, -Cmx;
         // Cy << Cd, -Cmy;
 
@@ -500,10 +662,7 @@ void RLLQTController::sendCmdVel(double h){
         old_u = u;
         rl = true;
 
-        countk++;
-
-     
-
+        countk++;     
     }
 
 }

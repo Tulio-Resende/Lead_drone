@@ -55,6 +55,11 @@ private:
     Eigen::VectorXd augmented_state_x, augmented_state_y, old_augmented_state_x, old_augmented_state_y;
     Eigen::RowVectorXd Kx, Ky, kz;
     Eigen::VectorXd theta;
+    Eigen::VectorXd alpha;
+    
+    Eigen::VectorXd u_p; 
+    Eigen::MatrixXd N;
+
     std::vector<Eigen::MatrixXd> H;
     Eigen::MatrixXd prls;
     Eigen::Vector3f u, old_u;
@@ -82,22 +87,16 @@ private:
     Eigen::MatrixXd Q_dlyap;
 
     
-    double K0factor, THETA0factor, PRLS0factor;
+    double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
     double countk, inv_scalar;
-    
-    // bool control_enabled = false;
-    bool flag_first_pos = true;
-    bool flag_first_vel = true;
-    bool flag_first_ref = true;
+ 
     bool flag_pos = false;
     bool flag_vel = false;
     bool flag_ref = false;
     bool gain_update = true;
     bool dlyap_flag = false;
     bool rl = false;
-
-
-    
+   
     sensor_msgs::Joy vel_msg;
     std_msgs::Float64MultiArray gain_msg;
 
@@ -119,7 +118,9 @@ public:
     Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
     Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter = 1000, double tol = 1e-12);
+    // void UpdateRLS(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
+    void Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Qe, double& R);
     void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
 
