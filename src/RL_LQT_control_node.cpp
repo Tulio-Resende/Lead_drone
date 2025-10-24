@@ -9,8 +9,8 @@ priv_handle("~"), dist(0.0, 0.2)
     //TODO: find a better way to do that (maybe param)
     // Reward calculation
 
-    kp = 1.3;
-    mu = kp/10;
+    kp = 4;
+    mu = kp/20;
 
     Am << 
     0.999992870110446,	    -0.000712988288670474,	-5.41441701278375e-08,	-5.41441057874235e-06,	0,
@@ -37,7 +37,7 @@ priv_handle("~"), dist(0.0, 0.2)
     // Aug C
     Cx << Cd, -Cmx;
     // Cy << Cd, -Cmy;
-    Qe = 1000;
+    Qe = 1;
     R = 1;
     // // Modifield Q LQR
     Qx = Cx.transpose() * Qe * Cx;
@@ -78,18 +78,18 @@ priv_handle("~"), dist(0.0, 0.2)
     Ky = Eigen::RowVectorXd::Zero(n_state_aug);
     // kz = Eigen::RowVectorXd::Zero(n_state_aug);
 
-    K0factor = 1.0/50*50;
+    K0factor = 1.0/20;
     // THETA0factor = 0.8;
 
     // PRLS0factor=10e2;
 
-    // Kx << 0.545080178892607,	0.298244493046121,	-4.83374763212812,	0.0734074866054616,	-0.116774466701902,	0.00133785300048387,	-0.000295129490099704;
-    // Ky << 0.544832357786152,	0.297718734955302,	-0.938787947829030,	0.115468303660034,	-0.0321069658667400,	0.00512389590248099,	-0.000294995309258785;
-    // // kz << 0, 0;
+    Kx << 0.545080178892607,	0.298244493046121,	-4.83374763212812,	0.0734074866054616,	-0.116774466701902,	0.00133785300048387,	-0.000295129490099704;
+    Ky << 0.544832357786152,	0.297718734955302,	-0.938787947829030,	0.115468303660034,	-0.0321069658667400,	0.00512389590248099,	-0.000294995309258785;
+    // kz << 0, 0;
 
-    Kx << 27.124426673138792, 5.368769229468123, -244.03576687339714, 0.6608225415608986, -5.8735890982539685, 0.012275805209641881, -0.01356221333656942; 
+    // Kx << 27.124426673138792, 5.368769229468123, -244.03576687339714, 0.6608225415608986, -5.8735890982539685, 0.012275805209641881, -0.01356221333656942; 
     // Kx << 27.1244266731466,	5.36876922946919,	-244.035798047837,	0.660572823817245,	-5.87468455619007,	0.0120130717500125,	-0.0146863131760855;
-    Ky << 27.1244266731349,	5.36876922946723,	-52.9208135832513,	5.68328558567109,   -1.87385859124528,  0.257034874578231,	-0.0146863131760852;
+    // Ky << 27.1244266731349,	5.36876922946723,	-52.9208135832513,	5.68328558567109,   -1.87385859124528,  0.257034874578231,	-0.0146863131760852;
     //initial gain
     Kx = Kx * K0factor; 
     // Ky = Ky * K0factor;
@@ -644,8 +644,8 @@ void RLLQTController::sendCmdVel(double h){
             // // Test Dlyap                            
             A_dlyap.topLeftCorner(7, 7) = Aa;
             A_dlyap.topRightCorner(7, 1) = Ba;
-            A_dlyap.bottomLeftCorner(1, 7) = -Kx*Aa;
-            A_dlyap.bottomRightCorner(1, 1) = -Kx*Ba;    
+            A_dlyap.bottomLeftCorner(1, 7) = -Kx * Aa;
+            A_dlyap.bottomRightCorner(1, 1) = -Kx * Ba;    
 
         
             // ROS_INFO_STREAM("Q_dlyap \n" << Q_dlyap);
@@ -665,15 +665,15 @@ void RLLQTController::sendCmdVel(double h){
             // Erls.y() = reward.y() - phi[1].transpose() * theta;
             ROS_INFO_STREAM("erls" << Erls.x());
 
-            mu = mu + h*(Erls.x());
+            mu = mu + h * (Erls.x());
 
-            // kp = mu * 3/10;
+            kp = mu * 3/10;
 
             // RLS
             // UpdateRLS(theta, phi, Erls, prls, mu);
 
 
-            if (countk > 200)
+            if (countk > 100)
             {
                 
                 // UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
@@ -692,7 +692,6 @@ void RLLQTController::sendCmdVel(double h){
                 gain_pub.publish(gain_msg); 
 
                 countk = 0;
-                // mu = kp/10;
             
             }
 

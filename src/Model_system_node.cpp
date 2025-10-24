@@ -10,8 +10,8 @@ priv_handle("~")
     1.0000,    0.0197,
     0,         0.9743;
    
-    state_x << 9, 0;  // Initial Condition
-    state_y << 2, 0;
+    state_x << 1, 0;  // Initial Condition
+    state_y << 0, 0;
 
     Cd << 1, 0;
 

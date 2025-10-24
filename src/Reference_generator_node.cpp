@@ -131,7 +131,7 @@ void ReferenceGenerator::sendRefPos(double h){
     // output_ref.x = Cmx * xm; //+ yss
     // output_ref.y = Cmy * xm; //+ yss
 
-    // ROS_INFO_STREAM("out" << output_ref.vector.x);
+    ROS_INFO_STREAM("out" << output_ref);
 
     out_ref_pub.publish(output_ref);
 
