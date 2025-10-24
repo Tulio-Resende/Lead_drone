@@ -15,6 +15,7 @@
 #include <geometry_msgs/Vector3Stamped.h>
 
 #include <sensor_msgs/Joy.h>
+#include <std_srvs/SetBool.h>
 
 
 
@@ -32,19 +33,25 @@ private:
         ros::Subscriber controlSignal;
             void receiveControlSignal(const sensor_msgs::Joy::ConstPtr& msg);
 
+    void configService();
+        ros::ServiceServer service_model;
+
     geometry_msgs::PointStamped cur_pos;
     geometry_msgs::Vector3Stamped cur_vel;
     geometry_msgs::Vector3 output_model;
     geometry_msgs::Vector3 control_signal;   
     
     // Defining Reference Generate System
-    Eigen::Matrix<float, 2, 2> Ad;
-    Eigen::Matrix<float, 2, 1> Bd;
-    Eigen::Matrix<float, 1, 2> Cd;
-    Eigen::Matrix<float, 2, 1> state_x;
-    Eigen::Matrix<float, 2, 1> state_y;
-    Eigen::Matrix<float, 2, 1> state_z;
-    Eigen::Matrix<float, 2, 1> state_yaw;
+    Eigen::Matrix<double, 2, 2> Ad;
+    Eigen::Matrix<double, 2, 1> Bd;
+    Eigen::Matrix<double, 1, 2> Cd;
+    Eigen::Matrix<double, 2, 1> state_x;
+    Eigen::Matrix<double, 2, 1> state_y;
+    Eigen::Matrix<double, 2, 1> state_z;
+    Eigen::Matrix<double, 2, 1> state_yaw;
+
+    int count;
+    bool control_enabled;
 
 public:
 
@@ -57,4 +64,8 @@ public:
     void configNode();
 
     void sendModelStates(double h);
+
+   bool handleEnable(std_srvs::SetBool::Request &req,
+                  std_srvs::SetBool::Response &res);
+
 };

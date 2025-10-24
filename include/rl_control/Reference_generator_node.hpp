@@ -9,10 +9,13 @@
 #include <cmath>
 #include <eigen3/Eigen/Core>
 #include <random>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/Vector3.h>
 
 #include <std_msgs/Float64MultiArray.h>
 #include <std_srvs/SetBool.h>
+
+
 
 
 class ReferenceGenerator
@@ -26,15 +29,19 @@ private:
         ros::ServiceClient client_ref;
 
     std_msgs::Float64MultiArray ref_msg;
-    geometry_msgs::Vector3 output_ref;   
+    geometry_msgs::Vector3Stamped output_ref;   
+    // geometry_msgs::Vector3 output_ref;   
     
     // Defining Reference Generate System
-    Eigen::Matrix<float, 5, 5> Am;
-    Eigen::Matrix<float, 5, 1> xm;
-    Eigen::Matrix<float, 1, 5> Cmx;
-    Eigen::Matrix<float, 1, 5> Cmy;
+    Eigen::Matrix<double, 5, 5> Am;
+    Eigen::Matrix<double, 5, 1> xm;
+    Eigen::Matrix<double, 1, 5> Cmx;
+    Eigen::Matrix<double, 1, 5> Cmy;
 
     std_srvs::SetBool srv;
+
+    Eigen::Vector3d excitation;
+
 
 public:
 
@@ -45,7 +52,9 @@ public:
     ros::NodeHandle priv_handle;
 
     void configNode();
-    bool enableControl(bool enable);
+    bool waitForPlant(bool enable);
+    Eigen::Vector3d Excitation(double& t);
+
 
     void sendRefPos(double h);
 };

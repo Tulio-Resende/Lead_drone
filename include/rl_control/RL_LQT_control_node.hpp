@@ -22,6 +22,8 @@
 #include <utility>
 #include <std_msgs/Float64MultiArray.h>
 
+
+
 class RLLQTController
 {
 private:
@@ -77,8 +79,8 @@ private:
     Eigen::Matrix<double, 1, 7> Cy;
     Eigen::Matrix<double, 7, 7> Qx;
     Eigen::Matrix<double, 7, 7> Qy;
-    Eigen::Matrix<double, 2, 2> Ad;
-    Eigen::Matrix<double, 2, 1> Bd;
+    Eigen::Matrix<double, 2, 2> Ap;
+    Eigen::Matrix<double, 2, 1> Bp;
     Eigen::Matrix<double, 5, 5> Am;
     Eigen::Matrix<double, 5, 1> Bm;
     Eigen::MatrixXd Aa;
@@ -89,6 +91,8 @@ private:
     
     double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
     double countk, inv_scalar;
+    double Qe, R;
+    double kp, mu;
  
     bool flag_pos = false;
     bool flag_vel = false;
@@ -118,10 +122,13 @@ public:
     Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
     Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter = 1000, double tol = 1e-12);
-    // void UpdateRLS(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
+    void UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     void Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Qe, double& R);
     void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
+    std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
+    Eigen::VectorXd UpdateTheta(const Eigen::MatrixXd& H_THETA);
+
 
 };
