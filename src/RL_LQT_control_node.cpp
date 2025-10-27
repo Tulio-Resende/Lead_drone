@@ -12,6 +12,7 @@ priv_handle("~"), dist(0.0, 0.2)
     kp = 4;
     mu = kp/20;
 
+
     Am << 
     0.999992870110446,	    -0.000712988288670474,	-5.41441701278375e-08,	-5.41441057874235e-06,	0,
     0.0199999524673852,	    0.999992870110446,	    -3.60961305760057e-10,	-5.41441701278375e-08,	0,
@@ -83,6 +84,7 @@ priv_handle("~"), dist(0.0, 0.2)
 
     // PRLS0factor=10e2;
 
+
     Kx << 0.545080178892607,	0.298244493046121,	-4.83374763212812,	0.0734074866054616,	-0.116774466701902,	0.00133785300048387,	-0.000295129490099704;
     Ky << 0.544832357786152,	0.297718734955302,	-0.938787947829030,	0.115468303660034,	-0.0321069658667400,	0.00512389590248099,	-0.000294995309258785;
     // kz << 0, 0;
@@ -94,8 +96,11 @@ priv_handle("~"), dist(0.0, 0.2)
     Kx = Kx * K0factor; 
     // Ky = Ky * K0factor;
 
-    // ROS_INFO_STREAM("Initial Kx" << Kx);
-    // ROS_INFO_STREAM("Initial Ky" << Ky);
+    ROS_INFO_STREAM("Initial Kx" << Kx);
+    ROS_INFO_STREAM("Initial Ky" << Ky);
+    ROS_INFO_STREAM("Initial mu" << mu);
+    ROS_INFO_STREAM("Initial kp" << kp);
+
 
     // theta = theta * THETA0factor;
    
@@ -673,16 +678,16 @@ void RLLQTController::sendCmdVel(double h){
             // UpdateRLS(theta, phi, Erls, prls, mu);
 
 
-            if (countk > 100)
+            if (countk > 200)
             {
                 
                 // UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
                 int z = augmented_state_x.size();
-                ROS_INFO_STREAM("H_hat: \n" << H[0]);
+                // ROS_INFO_STREAM("H_hat: \n" << H[0]);
 
                 inv_scalar = 1.0 / H[0](z-1, z-1);
                 Kx = inv_scalar*H[0].row(z-1).segment(0,z-1);
-                ROS_INFO_STREAM("Updated Kx: " << Kx);
+                // ROS_INFO_STREAM("Updated Kx: " << Kx);
 
                 gain_msg.data.resize(state_x.size());
                 for (int i = 0; i < state_x.size(); i++) 
@@ -692,6 +697,7 @@ void RLLQTController::sendCmdVel(double h){
                 gain_pub.publish(gain_msg); 
 
                 countk = 0;
+
             
             }
 
