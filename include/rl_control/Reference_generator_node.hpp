@@ -33,10 +33,10 @@ private:
     // geometry_msgs::Vector3 output_ref;   
     
     // Defining Reference Generate System
-    Eigen::Matrix<double, 5, 5> Am;
-    Eigen::Matrix<double, 5, 1> xm;
-    Eigen::Matrix<double, 1, 5> Cmx;
-    Eigen::Matrix<double, 1, 5> Cmy;
+    Eigen::MatrixXd Am;
+    Eigen::VectorXd xm;
+    Eigen::MatrixXd Cmx;
+    Eigen::MatrixXd Cmy;
 
     std_srvs::SetBool srv;
 
@@ -45,10 +45,11 @@ private:
 
 public:
 
-    ReferenceGenerator(/* args */);
-    ~ReferenceGenerator();
-
     ros::NodeHandle handle;
+
+    ReferenceGenerator(ros::NodeHandle& nh);
+    ~ReferenceGenerator();
+    
     ros::NodeHandle priv_handle;
 
     void configNode();

@@ -1,43 +1,17 @@
 #include "rl_control/Reference_generator_node.hpp"
+#include "rl_control/param_loader.hpp"
 
 /* Constructor */
-ReferenceGenerator::ReferenceGenerator(/* args */): 
+ReferenceGenerator::ReferenceGenerator(ros::NodeHandle& nh): 
 priv_handle("~")
 {
-    // Am << 
-    // 0.999992870110446,	    -0.000712988288670474,	-5.41441701278375e-08,	-5.41441057874235e-06,
-    // 0.0199999524673852,	    0.999992870110446,	    -3.60961305760061e-10,	-5.41441701278375e-08,
-    // 0.000199999762336882,	0.0199999524673852,	    0.999999999998195,	    -3.60961305760061e-10,
-    // 1.33333238268077e-06,	0.000199999762336882,	0.0199999999999928,	    0.999999999998195;
-
-    // xm << 1, 0, 0, 0;
-    
-    
-
-    Am << 
-    0.999992870110446,	    -0.000712988288670474,	-5.41441701278375e-08,	-5.41441057874235e-06,	0,
-    0.0199999524673852,	    0.999992870110446,	    -3.60961305760057e-10,	-5.41441701278375e-08,	0,
-    0.000199999762336881,	0.0199999524673852,	    0.999999999998195,	    -3.60961305760057e-10,	0,
-    1.33333238268076e-06,	0.000199999762336881,	0.0199999999999928,	    0.999999999998195,	    0,
-    6.66666349782453e-09,	1.33333238268076e-06,	0.000199999999999976,	0.0199999999999928,	    1;
    
-    xm << 1, 0, 0, 0, 0;  // Initial Condition
+    loadMatrix(nh, "Am", Am);
+    loadVector(nh, "xm", xm);
+    loadMatrix(nh, "Cmx", Cmx);
+    loadMatrix(nh, "Cmy", Cmy);
 
-       
-    Cmx <<
-    9.0000, 0, 0.2166, 0, 0.0005;
-
-    Cmy <<
-    2.0000, -0.2095, 0.0713, -0.0095, 0.0005;
-
- 
-
-    // Cmx <<
-    // 7.000, 0, 0.1453, 0;
-
-    // Cmy <<
-    // 0, -0.2095, 0, -0.0095;
-
+    
     ROS_DEBUG("Constructor called.");
 }
 
@@ -126,12 +100,12 @@ void ReferenceGenerator::sendRefPos(double h){
     t += h;
    
     output_ref.header.stamp = ros::Time::now();
-    output_ref.vector.x  = Cmx * xm; //+ yss
-    output_ref.vector.y = Cmy * xm; //+ yss
+    output_ref.vector.x = (Cmx * xm).value(); //+ yss
+    output_ref.vector.y = (Cmy * xm).value(); //+ yss
     // output_ref.x = Cmx * xm; //+ yss
     // output_ref.y = Cmy * xm; //+ yss
 
-    // ROS_INFO_STREAM("out" << output_ref);
+    ROS_INFO_STREAM("out" << output_ref);
 
     out_ref_pub.publish(output_ref);
 
@@ -152,12 +126,14 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "Reference_generator_node");
     ROS_INFO("This node has started.");
-    ReferenceGenerator nh;
 
-    nh.configNode();
+    ros::NodeHandle nh; 
+    ReferenceGenerator ref_gen(nh);
+
+    ref_gen.configNode();
 
     // === Chama o serviço apenas uma vez ===
-    if (!nh.waitForPlant(true)) {
+    if (!ref_gen.waitForPlant(true)) {
         ROS_ERROR("Não foi possível habilitar o controle. Encerrando nó.");
         return -1;  // Finaliza se falhar
     }
@@ -169,13 +145,10 @@ int main(int argc, char **argv){
     ros::Rate sampling_rate(50);    // Hertz
     while(ros::ok()){
 
-        // ros::Time current_time = ros::Time::now();
-
-        // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
 
         ros::spinOnce();
-        nh.sendRefPos(h);
+        ref_gen.sendRefPos(h);
 
         sampling_rate.sleep();
     }

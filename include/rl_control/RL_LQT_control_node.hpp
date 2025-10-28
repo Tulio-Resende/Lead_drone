@@ -44,26 +44,14 @@ private:
         ros::Publisher reward_pub;
         ros::Publisher gain_pub;
         
-    
-    // void configService();
-    //     ros::ServiceServer enable_service;
-    //     bool enableControl(std_srvs::SetBool::Request &req, std_srvs::SetBool::Response &res);
 
-
-    Eigen::Vector3d cur_pos, cur_vel;
-    Eigen::VectorXd ref_msg, old_ref_msg;
-    Eigen::VectorXd state_x, state_y, old_state_x, old_state_y;
-    std::vector<Eigen::VectorXd> phi;
-    Eigen::VectorXd augmented_state_x, augmented_state_y, old_augmented_state_x, old_augmented_state_y;
-    Eigen::RowVectorXd Kx, Ky, kz;
     Eigen::VectorXd theta;
-    Eigen::VectorXd alpha;
-    
-    Eigen::VectorXd u_p; 
-    Eigen::MatrixXd N;
+    Eigen::MatrixXd prls;
+    // Eigen::VectorXd alpha;
+    // Eigen::VectorXd u_p; 
+    // Eigen::MatrixXd N;
 
     std::vector<Eigen::MatrixXd> H;
-    Eigen::MatrixXd prls;
     Eigen::Vector3f u, old_u;
     Eigen::Vector3d Erls, reward;
 
@@ -72,27 +60,29 @@ private:
     Eigen::VectorXd old_bar_x, old_bar_y;
     Eigen::VectorXd bar_x, bar_y;
 
-    Eigen::Matrix<double, 1, 2> Cd;
-    Eigen::Matrix<double, 1, 5> Cmx;
-    Eigen::Matrix<double, 1, 5> Cmy;
-    Eigen::Matrix<double, 1, 7> Cx;
-    Eigen::Matrix<double, 1, 7> Cy;
-    Eigen::Matrix<double, 7, 7> Qx;
-    Eigen::Matrix<double, 7, 7> Qy;
-    Eigen::Matrix<double, 2, 2> Ap;
-    Eigen::Matrix<double, 2, 1> Bp;
-    Eigen::Matrix<double, 5, 5> Am;
-    Eigen::Matrix<double, 5, 1> Bm;
+    Eigen::Vector3d cur_pos, cur_vel;
+    Eigen::VectorXd ref_msg, old_ref_msg;
+    Eigen::VectorXd state_x, state_y, old_state_x, old_state_y;
+    std::vector<Eigen::VectorXd> phi;
+    Eigen::VectorXd augmented_state_x, augmented_state_y, old_augmented_state_x, old_augmented_state_y;
+    Eigen::RowVectorXd Kx, Ky, kz;
+
+    Eigen::MatrixXd Cd;
+    Eigen::MatrixXd Cmx, Cmy, Cmz, Cmyaw;
+    Eigen::MatrixXd Cax, Cay, Caz, Cayaw;
+    Eigen::MatrixXd Ap;
+    Eigen::MatrixXd Bp;
+    Eigen::MatrixXd Am;
+    Eigen::MatrixXd Bm;
     Eigen::MatrixXd Aa;
     Eigen::MatrixXd Ba;
+    Eigen::MatrixXd Qx, Qy, Qz, Qyaw;
     Eigen::MatrixXd A_dlyap;
-    Eigen::MatrixXd Q_dlyap;
+    Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
 
     
     double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
-    double countk, inv_scalar;
-    double Qe, R;
-    double kp, mu;
+    double countk, inv_scalar, Qe, R, kp, mu, ki;
  
     bool flag_pos = false;
     bool flag_vel = false;
@@ -107,7 +97,7 @@ private:
 
 public:
 
-    RLLQTController(/* args */);
+    RLLQTController(ros::NodeHandle& nh);
     ~RLLQTController();
 
     ros::NodeHandle handle;
@@ -122,13 +112,14 @@ public:
     Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
     Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter = 1000, double tol = 1e-12);
-    void UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
-    void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
+    // void UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
+    // void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     void Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Qe, double& R);
-    void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
+    // void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
     Eigen::VectorXd UpdateTheta(const Eigen::MatrixXd& H_THETA);
 
+    void Calc_Q_lyap(const Eigen::MatrixXd& Cx, const double& Qe, const double& R);
 
 };

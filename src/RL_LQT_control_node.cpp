@@ -1,51 +1,52 @@
 #include "rl_control/RL_LQT_control_node.hpp"
+#include "rl_control/param_loader.hpp"
 
 /* Constructor */
-RLLQTController::RLLQTController(/* args */): 
+RLLQTController::RLLQTController(ros::NodeHandle& nh): 
 priv_handle("~"), dist(0.0, 0.2)
 {
     ROS_DEBUG("Constructor called.");
        
-    //TODO: find a better way to do that (maybe param)
-    // Reward calculation
 
-    kp = 4;
+    nh.getParam("Qe", Qe);
+    nh.getParam("R", R);
+    nh.getParam("kp", kp);
+    nh.getParam("ki", ki);
     mu = kp/20;
 
-
-    Am << 
-    0.999992870110446,	    -0.000712988288670474,	-5.41441701278375e-08,	-5.41441057874235e-06,	0,
-    0.0199999524673852,	    0.999992870110446,	    -3.60961305760057e-10,	-5.41441701278375e-08,	0,
-    0.000199999762336881,	0.0199999524673852,	    0.999999999998195,	    -3.60961305760057e-10,	0,
-    1.33333238268076e-06,	0.000199999762336881,	0.0199999999999928,	    0.999999999998195,	    0,
-    6.66666349782453e-09,	1.33333238268076e-06,	0.000199999999999976,	0.0199999999999928,	    1;
-
-    Cmx <<
-    9.0000, 0, 0.2166, 0, 0.0005;
-
-    Cmy <<
-    2.0000, -0.2095, 0.0713, -0.0095, 0.0005;
-
-    Bm.setZero();
+    loadMatrix(nh, "Am", Am);
+    loadMatrix(nh, "Cmx", Cmx);
+    loadMatrix(nh, "Cmy", Cmy);
+    loadMatrix(nh, "Bm", Bm);
+    loadMatrix(nh, "Cd", Cd);
+    loadMatrix(nh, "Kx", Kx);
+    loadMatrix(nh, "Ky", Ky);
 
     Ba = Eigen::MatrixXd::Zero(7,1);
     Aa = Eigen::MatrixXd::Zero(7,7);
     A_dlyap = Eigen::MatrixXd::Zero(8,8);
-    Q_dlyap = Eigen::MatrixXd::Zero(8,8);
 
-    Cd << 1,0;
+    Q_dlyap_x = Eigen::MatrixXd::Zero(8,8);
+    // Q_dlyap_y = Eigen::MatrixXd::Zero(8,8);
+    // Q_dlyap_z = Eigen::MatrixXd::Zero(8,8);
+    // Q_dlyap_yaw = Eigen::MatrixXd::Zero(8,8);
+
 
     // Aug C
-    Cx << Cd, -Cmx;
-    // Cy << Cd, -Cmy;
-    Qe = 1;
-    R = 1;
-    // // Modifield Q LQR
-    Qx = Cx.transpose() * Qe * Cx;
-    // Qy = Cy.transpose() * Qe * Cy;
+    Cax << Cd, -Cmx;
+    // Cay << Cd, -Cmy;
+    // Caz << Cd, -Cmz;
+    // Cayaw << Cd, -Cmyaw;
+  
 
-    Q_dlyap.block<7,7>(0,0) = Qx;  
-    Q_dlyap(7,7) = R;
+    // // Modifield Q LQR
+    // Qx = Cax.transpose() * Qe * Cax;
+    // Qy = Cay.transpose() * Qe * Cay;
+    // Qz = Caz.transpose() * Qe * Caz;
+    // Qyaw = Cayaw.transpose() * Qe * Cayaw;
+
+
+    Calc_Q_lyap(Cax, Qe, R);
 
     ref_msg = Eigen::VectorXd::Zero(5);
 
@@ -64,7 +65,6 @@ priv_handle("~"), dist(0.0, 0.2)
     old_augmented_state_x = Eigen::VectorXd::Zero(n_state_aug_control);
     old_augmented_state_y = Eigen::VectorXd::Zero(n_state_aug_control);
 
-    //TODO: find a better way to choose the vector size
     bar_x = Eigen::VectorXd::Zero(n_param);
     old_bar_x = Eigen::VectorXd::Zero(n_param);
     bar_y = Eigen::VectorXd::Zero(n_param);
@@ -75,23 +75,13 @@ priv_handle("~"), dist(0.0, 0.2)
 
     // theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
 
-    Kx = Eigen::RowVectorXd::Zero(n_state_aug);
-    Ky = Eigen::RowVectorXd::Zero(n_state_aug);
-    // kz = Eigen::RowVectorXd::Zero(n_state_aug);
 
-    K0factor = 1.0/20;
+    K0factor = 1.0/50;
+
+
     // THETA0factor = 0.8;
-
     // PRLS0factor=10e2;
 
-
-    Kx << 0.545080178892607,	0.298244493046121,	-4.83374763212812,	0.0734074866054616,	-0.116774466701902,	0.00133785300048387,	-0.000295129490099704;
-    Ky << 0.544832357786152,	0.297718734955302,	-0.938787947829030,	0.115468303660034,	-0.0321069658667400,	0.00512389590248099,	-0.000294995309258785;
-    // kz << 0, 0;
-
-    // Kx << 27.124426673138792, 5.368769229468123, -244.03576687339714, 0.6608225415608986, -5.8735890982539685, 0.012275805209641881, -0.01356221333656942; 
-    // Kx << 27.1244266731466,	5.36876922946919,	-244.035798047837,	0.660572823817245,	-5.87468455619007,	0.0120130717500125,	-0.0146863131760855;
-    // Ky << 27.1244266731349,	5.36876922946723,	-52.9208135832513,	5.68328558567109,   -1.87385859124528,  0.257034874578231,	-0.0146863131760852;
     //initial gain
     Kx = Kx * K0factor; 
     // Ky = Ky * K0factor;
@@ -101,11 +91,11 @@ priv_handle("~"), dist(0.0, 0.2)
     ROS_INFO_STREAM("Initial mu" << mu);
     ROS_INFO_STREAM("Initial kp" << kp);
 
+     countk = 0;
 
     // theta = theta * THETA0factor;
-   
-    countk = 0;
     // prls = Eigen::MatrixXd::Identity(alpha.size(),alpha.size()) * PRLS0factor;
+
 }
 
 /* Destructor */
@@ -526,9 +516,9 @@ Eigen::Vector3d RLLQTController::Excitation(double& t)
     return excitation;
 }
 
-void RLLQTController::Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Qe, double& R)
+void RLLQTController::Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Q, double& R)
 {
-     reward.x() = - old_state.transpose() * Qx * old_state - old_u.x() * R * old_u.x();
+     reward.x() = - old_state.transpose() * Q * old_state - old_u.x() * R * old_u.x();
     // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
     // ROS_INFO_STREAM("reward x"  << reward.x());
 
@@ -586,6 +576,15 @@ std::pair<Eigen::MatrixXd, Eigen::MatrixXd> RLLQTController::UpdateMatrices(cons
 
     return std::make_pair(Ap, Bp);
 }
+
+void Calc_Q_lyap(const Eigen::MatrixXd& Cx, const double& Qe, const double& R)
+{
+    Qx = Cx.transpose() * Qe * Cx;
+
+    Q_dlyap_x.block<7,7>(0,0) = Qe;  
+    Q_dlyap_x(7,7) = R;
+}
+
 
 
 void RLLQTController::sendCmdVel(double h){
@@ -658,7 +657,7 @@ void RLLQTController::sendCmdVel(double h){
 
 
             H.resize(3);
-            H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap.transpose(), Q_dlyap);
+            H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap.transpose(), Q_dlyap_x);
             // ROS_INFO_STREAM("H" << H[0]);
 
             theta = UpdateTheta(H[0]);
@@ -672,13 +671,13 @@ void RLLQTController::sendCmdVel(double h){
 
             mu = mu + h * (Erls.x());
 
-            kp = mu * 3/10;
+            kp = mu * ki;
 
             // RLS
             // UpdateRLS(theta, phi, Erls, prls, mu);
 
 
-            if (countk > 200)
+            if (countk > 400)
             {
                 
                 // UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
@@ -725,9 +724,12 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "RL_LQT_control_node");
     ROS_INFO("This node has started.");
-    RLLQTController nh;
 
-    nh.configNode();
+    ros::NodeHandle nh;
+    
+    RLLQTController rl_lqt(nh);
+
+    rl_lqt.configNode();
 
     ros::Time start_time = ros::Time::now();
 
@@ -739,7 +741,7 @@ int main(int argc, char **argv){
         // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
         ros::spinOnce();
-        nh.sendCmdVel(h);
+        rl_lqt.sendCmdVel(h);
 
         sampling_rate.sleep();
     }

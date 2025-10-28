@@ -1,22 +1,37 @@
 #include "rl_control/Model_system_node.hpp"
+#include "rl_control/param_loader.hpp"
+
 
 /* Constructor */
-ModelSystem::ModelSystem(/* args */): 
+ModelSystem::ModelSystem(ros::NodeHandle& nh): 
 priv_handle("~")
 {
     count = 0;
 
-    Ad << 
-    1.0000,    0.0197,
-    0,         0.9743;
+    loadMatrix(nh, "Ad", Ad);
+    loadMatrix(nh, "Bd", Bd);
+    loadMatrix(nh, "Cd", Cd);
+    loadVector(nh, "x0x", state_x);
+    loadVector(nh, "x0y", state_y);
+
+
+    ROS_INFO_STREAM("Ad" << Ad);
+    ROS_INFO_STREAM("Bd" << Bd);
+    ROS_INFO_STREAM("Cd" << Cd);
+    ROS_INFO_STREAM("state_x" << state_x);
+    ROS_INFO_STREAM("state_y" << state_y);
+
+    // Ad << 
+    // 1.0000,    0.0197,
+    // 0,         0.9743;
    
-    state_x << 1, 0;  // Initial Condition
-    state_y << 0, 0;
+    // state_x << 9, 0;  // Initial Condition
+    // state_y << 2, 0;
 
-    Cd << 1, 0;
+    // Cd << 1, 0;
 
-    Bd <<
-    0.0003, 0.0257;
+    // Bd <<
+    // 0.0003, 0.0257;
 
 
     ROS_DEBUG("Constructor called.");
@@ -96,8 +111,8 @@ void ModelSystem::sendModelStates(double h){
     {
         // ROS_INFO_STREAM("count" << count);
 
-        output_model.x = Cd * state_x;
-        // output_model.y = Cd * state_y;;
+        output_model.x = (Cd * state_x).value();
+        output_model.y = (Cd * state_y).value();
 
         outModelPub.publish(output_model);
 
@@ -142,9 +157,12 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "Model_System_node");
     ROS_INFO("This node has started.");
-    ModelSystem nh;
 
-    nh.configNode();
+    ros::NodeHandle nh;
+
+    ModelSystem model_sys(nh);
+
+    model_sys.configNode();
 
     ros::Time start_time = ros::Time::now();
 
@@ -156,7 +174,7 @@ int main(int argc, char **argv){
         // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
         ros::spinOnce();
-        nh.sendModelStates(h);
+        model_sys.sendModelStates(h);
 
         sampling_rate.sleep();
     }

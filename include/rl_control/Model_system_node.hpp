@@ -17,9 +17,6 @@
 #include <sensor_msgs/Joy.h>
 #include <std_srvs/SetBool.h>
 
-
-
-
 class ModelSystem
 {
 private:
@@ -42,20 +39,20 @@ private:
     geometry_msgs::Vector3 control_signal;   
     
     // Defining Reference Generate System
-    Eigen::Matrix<double, 2, 2> Ad;
-    Eigen::Matrix<double, 2, 1> Bd;
-    Eigen::Matrix<double, 1, 2> Cd;
-    Eigen::Matrix<double, 2, 1> state_x;
-    Eigen::Matrix<double, 2, 1> state_y;
-    Eigen::Matrix<double, 2, 1> state_z;
-    Eigen::Matrix<double, 2, 1> state_yaw;
+    Eigen::MatrixXd Ad;
+    Eigen::MatrixXd Bd;
+    Eigen::MatrixXd Cd;
+    Eigen::VectorXd state_x;
+    Eigen::VectorXd state_y;
+    Eigen::VectorXd state_z;
+    Eigen::VectorXd state_yaw;
 
     int count;
     bool control_enabled;
 
 public:
 
-    ModelSystem(/* args */);
+    ModelSystem(ros::NodeHandle& nh);
     ~ModelSystem();
 
     ros::NodeHandle handle;
