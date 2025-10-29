@@ -22,7 +22,17 @@
 #include <utility>
 #include <std_msgs/Float64MultiArray.h>
 
+struct PlantAxis
+{
+    std::string name;      // "x", "y", "z", "yaw"
+    Eigen::MatrixXd Cm;    // Matriz Cm do eixo
+    Eigen::MatrixXd Q;     // Matriz Q resultante
+    Eigen::MatrixXd Q_dlyap; // Matriz Q_dlyap resultante
 
+    PlantAxis() = default;
+    PlantAxis(const std::string& n, const Eigen::MatrixXd& C)
+        : name(n), Cm(C) {}
+};
 
 class RLLQTController
 {
@@ -67,6 +77,7 @@ private:
     Eigen::VectorXd augmented_state_x, augmented_state_y, old_augmented_state_x, old_augmented_state_y;
     Eigen::RowVectorXd Kx, Ky, kz;
 
+  
     Eigen::MatrixXd Cd;
     Eigen::MatrixXd Cmx, Cmy, Cmz, Cmyaw;
     Eigen::MatrixXd Cax, Cay, Caz, Cayaw;
@@ -80,7 +91,7 @@ private:
     Eigen::MatrixXd A_dlyap;
     Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
 
-    
+       
     double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
     double countk, inv_scalar, Qe, R, kp, mu, ki;
  
@@ -114,12 +125,16 @@ public:
                                int max_iter = 1000, double tol = 1e-12);
     // void UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     // void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
-    void Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Qe, double& R);
+    void Calc_reward(const Eigen::VectorXd& old_state, const Eigen::Vector3f& old_u, const Eigen::MatrixXd& Q, const double& R);
     // void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
     Eigen::VectorXd UpdateTheta(const Eigen::MatrixXd& H_THETA);
+    void Calc_Q_lyap(std::vector<PlantAxis>& axes,
+                     const Eigen::MatrixXd& Cd,
+                     const double& Qe,
+                     const double R);
 
-    void Calc_Q_lyap(const Eigen::MatrixXd& Cx, const double& Qe, const double& R);
+    // void Calc_Q_lyap(const Eigen::MatrixXd& Qx, const Eigen::MatrixXd& Qy, const Eigen::MatrixXd& Qz, const Eigen::MatrixXd& Qyaw, const Eigen::MatrixXd& Q_dlyap_x, Q const Eigen::MatrixXd& Cx, const double& Qe, const double& R);
 
 };

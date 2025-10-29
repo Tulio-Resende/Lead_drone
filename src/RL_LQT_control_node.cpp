@@ -12,6 +12,7 @@ priv_handle("~"), dist(0.0, 0.2)
     nh.getParam("R", R);
     nh.getParam("kp", kp);
     nh.getParam("ki", ki);
+    nh.getParam("K0factor", K0factor);
     mu = kp/20;
 
     loadMatrix(nh, "Am", Am);
@@ -22,31 +23,45 @@ priv_handle("~"), dist(0.0, 0.2)
     loadMatrix(nh, "Kx", Kx);
     loadMatrix(nh, "Ky", Ky);
 
+
+    //initial gain
+    Kx = Kx * K0factor; 
+    // Ky = Ky * K0factor;
+    // theta = theta * THETA0factor;
+    // prls = Eigen::MatrixXd::Identity(alpha.size(),alpha.size()) * PRLS0factor;
+
+
+    // theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
+    // THETA0factor = 0.8;
+    // PRLS0factor=10e2;
+
+
+
+    std::vector<PlantAxis> axes = {
+    {"x", Cmx},
+    {"y", Cmy},
+    // {"z", Cmz},
+    // {"yaw", Cmyaw}
+    };
+
+    // Calcula todos Q_i e Q_dlyap_i
+    Calc_Q_lyap(axes, Cd, Qe, R);
+
+    // Armazena localmente se quiser usar depois
+    Qx = axes[0].Q;
+    Qy = axes[1].Q;
+    // Qz = axes[2].Q;
+    // Qyaw = axes[3].Q;
+
+    Q_dlyap_x = axes[0].Q_dlyap;
+    Q_dlyap_y = axes[1].Q_dlyap;
+    // Q_dlyap_z = axes[2].Q_dlyap;
+    // Q_dlyap_yaw = axes[3].Q_dlyap;
+
+
     Ba = Eigen::MatrixXd::Zero(7,1);
     Aa = Eigen::MatrixXd::Zero(7,7);
     A_dlyap = Eigen::MatrixXd::Zero(8,8);
-
-    Q_dlyap_x = Eigen::MatrixXd::Zero(8,8);
-    // Q_dlyap_y = Eigen::MatrixXd::Zero(8,8);
-    // Q_dlyap_z = Eigen::MatrixXd::Zero(8,8);
-    // Q_dlyap_yaw = Eigen::MatrixXd::Zero(8,8);
-
-
-    // Aug C
-    Cax << Cd, -Cmx;
-    // Cay << Cd, -Cmy;
-    // Caz << Cd, -Cmz;
-    // Cayaw << Cd, -Cmyaw;
-  
-
-    // // Modifield Q LQR
-    // Qx = Cax.transpose() * Qe * Cax;
-    // Qy = Cay.transpose() * Qe * Cay;
-    // Qz = Caz.transpose() * Qe * Caz;
-    // Qyaw = Cayaw.transpose() * Qe * Cayaw;
-
-
-    Calc_Q_lyap(Cax, Qe, R);
 
     ref_msg = Eigen::VectorXd::Zero(5);
 
@@ -73,19 +88,6 @@ priv_handle("~"), dist(0.0, 0.2)
     
     theta = Eigen::VectorXd::Zero(n_param);
 
-    // theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
-
-
-    K0factor = 1.0/50;
-
-
-    // THETA0factor = 0.8;
-    // PRLS0factor=10e2;
-
-    //initial gain
-    Kx = Kx * K0factor; 
-    // Ky = Ky * K0factor;
-
     ROS_INFO_STREAM("Initial Kx" << Kx);
     ROS_INFO_STREAM("Initial Ky" << Ky);
     ROS_INFO_STREAM("Initial mu" << mu);
@@ -93,8 +95,6 @@ priv_handle("~"), dist(0.0, 0.2)
 
      countk = 0;
 
-    // theta = theta * THETA0factor;
-    // prls = Eigen::MatrixXd::Identity(alpha.size(),alpha.size()) * PRLS0factor;
 
 }
 
@@ -516,7 +516,7 @@ Eigen::Vector3d RLLQTController::Excitation(double& t)
     return excitation;
 }
 
-void RLLQTController::Calc_reward(Eigen::VectorXd& old_state, Eigen::Vector3f& old_u, double& Q, double& R)
+void RLLQTController::Calc_reward(const Eigen::VectorXd& old_state, const Eigen::Vector3f& old_u, const Eigen::MatrixXd& Q, const double& R)
 {
      reward.x() = - old_state.transpose() * Q * old_state - old_u.x() * R * old_u.x();
     // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
@@ -577,15 +577,29 @@ std::pair<Eigen::MatrixXd, Eigen::MatrixXd> RLLQTController::UpdateMatrices(cons
     return std::make_pair(Ap, Bp);
 }
 
-void Calc_Q_lyap(const Eigen::MatrixXd& Cx, const double& Qe, const double& R)
+inline void RLLQTController::Calc_Q_lyap(
+    std::vector<PlantAxis>& axes,
+    const MatrixXd& Cd,
+    const double& Qe,
+    const double R)
 {
-    Qx = Cx.transpose() * Qe * Cx;
+    for (auto& axis : axes)
+    {
+        // Monta a matriz aumentada C_a = [Cd  -Cm_i]
+        MatrixXd C_a(Cd.rows(), Cd.cols() + axis.Cm.cols());
+        C_a << Cd, -axis.Cm;
 
-    Q_dlyap_x.block<7,7>(0,0) = Qe;  
-    Q_dlyap_x(7,7) = R;
+        // Calcula Q_i = C_aᵀ * Qe * C_a
+        axis.Q = C_a.transpose() * Qe * C_a;
+
+        // Monta Q_dlyap_i
+        axis.Q_dlyap.setZero(axis.Q.rows() + 1, axis.Q.cols() + 1);
+        axis.Q_dlyap.block(0, 0, axis.Q.rows(), axis.Q.cols()) = axis.Q;
+        axis.Q_dlyap(axis.Q.rows(), axis.Q.cols()) = R;
+
+        ROS_INFO_STREAM("✔ Q_" << axis.name << " calculado:\n" << axis.Q);
+    }
 }
-
-
 
 void RLLQTController::sendCmdVel(double h){
 
@@ -630,7 +644,7 @@ void RLLQTController::sendCmdVel(double h){
             // phi[1] = old_bar_y - pow(gamma, h)* gamma * bar_y;
 
             // Reward
-            Calc_reward(old_state_x, old_u, Qe, R);
+            Calc_reward(old_state_x, old_u, Qx, R);
 
 
             auto matrices = UpdateMatrices(kp);

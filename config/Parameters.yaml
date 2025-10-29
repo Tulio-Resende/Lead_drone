@@ -76,11 +76,8 @@ Ky:
 # =======================
 # Constants
 # =======================
-freq: 50.0                
 kp: 4
 ki: 0.8
 Qe: 1
 R: 1                  
-mass: 3.25                
-control_enabled: true     
-drone_name: "M600_Lead"   
+K0factor: 0.02
