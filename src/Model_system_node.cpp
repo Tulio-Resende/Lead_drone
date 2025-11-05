@@ -14,26 +14,6 @@ priv_handle("~")
     loadVector(nh, "x0x", state_x);
     loadVector(nh, "x0y", state_y);
 
-
-    ROS_INFO_STREAM("Ad" << Ad);
-    ROS_INFO_STREAM("Bd" << Bd);
-    ROS_INFO_STREAM("Cd" << Cd);
-    ROS_INFO_STREAM("state_x" << state_x);
-    ROS_INFO_STREAM("state_y" << state_y);
-
-    // Ad << 
-    // 1.0000,    0.0197,
-    // 0,         0.9743;
-   
-    // state_x << 9, 0;  // Initial Condition
-    // state_y << 2, 0;
-
-    // Cd << 1, 0;
-
-    // Bd <<
-    // 0.0003, 0.0257;
-
-
     ROS_DEBUG("Constructor called.");
 }
 
@@ -49,7 +29,6 @@ void ModelSystem::configNode()
     configService();
     // ROS_INFO("Node configured.");
 }
-
 
 void ModelSystem::configSubscribers()
 {
@@ -84,7 +63,6 @@ bool ModelSystem::handleEnable(std_srvs::SetBool::Request &req,
     return true;
 }
 
-
 void ModelSystem::configPublishers(){
     curPosPub = handle.advertise<geometry_msgs::PointStamped>("/dji_sdk/local_position", 1);
     curVelPub = handle.advertise<geometry_msgs::Vector3Stamped>("/dji_sdk/velocity", 1);
@@ -104,13 +82,10 @@ void ModelSystem::receiveControlSignal(const sensor_msgs::Joy::ConstPtr& msg)
 
 }
 
-
 void ModelSystem::sendModelStates(double h){
 
     if (control_enabled == true)
     {
-        // ROS_INFO_STREAM("count" << count);
-
         output_model.x = (Cd * state_x).value();
         output_model.y = (Cd * state_y).value();
 
@@ -144,8 +119,6 @@ void ModelSystem::sendModelStates(double h){
         // }
         state_x = Ad * state_x + Bd * control_signal.x;
         state_y = Ad * state_y + Bd * control_signal.y;
-
-        // ROS_INFO("velocity = %f", state_x(0));
 
         // count = count + 1;
     }

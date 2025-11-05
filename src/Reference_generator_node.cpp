@@ -105,7 +105,7 @@ void ReferenceGenerator::sendRefPos(double h){
     // output_ref.x = Cmx * xm; //+ yss
     // output_ref.y = Cmy * xm; //+ yss
 
-    ROS_INFO_STREAM("out" << output_ref);
+    // ROS_INFO_STREAM("out" << output_ref);
 
     out_ref_pub.publish(output_ref);
 
@@ -137,6 +137,7 @@ int main(int argc, char **argv){
         ROS_ERROR("Não foi possível habilitar o controle. Encerrando nó.");
         return -1;  // Finaliza se falhar
     }
+
 
     ROS_INFO("Controle habilitado com sucesso! Iniciando geração de referência...");
 

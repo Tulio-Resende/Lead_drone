@@ -34,6 +34,14 @@ struct PlantAxis
         : name(n), Cm(C) {}
 };
 
+struct AxisSystem {
+    Eigen::MatrixXd Ap;
+    Eigen::MatrixXd Bp;
+    Eigen::MatrixXd Aa;
+    Eigen::MatrixXd Ba;
+    Eigen::MatrixXd A_dlyap;
+};
+
 class RLLQTController
 {
 private:
@@ -55,7 +63,7 @@ private:
         ros::Publisher gain_pub;
         
 
-    Eigen::VectorXd theta;
+    Eigen::VectorXd theta_x, theta_y;
     Eigen::MatrixXd prls;
     // Eigen::VectorXd alpha;
     // Eigen::VectorXd u_p; 
@@ -88,12 +96,12 @@ private:
     Eigen::MatrixXd Aa;
     Eigen::MatrixXd Ba;
     Eigen::MatrixXd Qx, Qy, Qz, Qyaw;
-    Eigen::MatrixXd A_dlyap;
+    Eigen::MatrixXd A_dlyap_x, A_dlyap_y;
     Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
 
        
     double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
-    double countk, inv_scalar, Qe, R, kp, mu, ki;
+    double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, mux, muy, ki;
  
     bool flag_pos = false;
     bool flag_vel = false;
@@ -103,7 +111,7 @@ private:
     bool rl = false;
    
     sensor_msgs::Joy vel_msg;
-    std_msgs::Float64MultiArray gain_msg;
+    std_msgs::Float64MultiArray gain_msg_x, gain_msg_y;
 
 
 public:
@@ -125,7 +133,7 @@ public:
                                int max_iter = 1000, double tol = 1e-12);
     // void UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     // void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
-    void Calc_reward(const Eigen::VectorXd& old_state, const Eigen::Vector3f& old_u, const Eigen::MatrixXd& Q, const double& R);
+    double Calc_reward(const Eigen::VectorXd& old_state, const float& old_u, const Eigen::MatrixXd& Q, const double& R);
     // void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
@@ -136,5 +144,6 @@ public:
                      const double R);
 
     // void Calc_Q_lyap(const Eigen::MatrixXd& Qx, const Eigen::MatrixXd& Qy, const Eigen::MatrixXd& Qz, const Eigen::MatrixXd& Qyaw, const Eigen::MatrixXd& Q_dlyap_x, Q const Eigen::MatrixXd& Cx, const double& Qe, const double& R);
-
+    void Calc_reward_all();
+    AxisSystem buildAxisSystem(double kp, const Eigen::RowVectorXd& K);
 };

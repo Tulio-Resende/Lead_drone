@@ -10,10 +10,12 @@ priv_handle("~"), dist(0.0, 0.2)
 
     nh.getParam("Qe", Qe);
     nh.getParam("R", R);
-    nh.getParam("kp", kp);
+    nh.getParam("kpx", kpx);
+    nh.getParam("kpy", kpy);
     nh.getParam("ki", ki);
     nh.getParam("K0factor", K0factor);
-    mu = kp/20;
+    mux = kpx/20;
+    muy = kpy/20;
 
     loadMatrix(nh, "Am", Am);
     loadMatrix(nh, "Cmx", Cmx);
@@ -26,11 +28,11 @@ priv_handle("~"), dist(0.0, 0.2)
 
     //initial gain
     Kx = Kx * K0factor; 
-    // Ky = Ky * K0factor;
+    Ky = Ky * K0factor;
+
+
     // theta = theta * THETA0factor;
     // prls = Eigen::MatrixXd::Identity(alpha.size(),alpha.size()) * PRLS0factor;
-
-
     // theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
     // THETA0factor = 0.8;
     // PRLS0factor=10e2;
@@ -61,7 +63,8 @@ priv_handle("~"), dist(0.0, 0.2)
 
     Ba = Eigen::MatrixXd::Zero(7,1);
     Aa = Eigen::MatrixXd::Zero(7,7);
-    A_dlyap = Eigen::MatrixXd::Zero(8,8);
+    A_dlyap_x = Eigen::MatrixXd::Zero(8,8);
+    A_dlyap_y = Eigen::MatrixXd::Zero(8,8);
 
     ref_msg = Eigen::VectorXd::Zero(5);
 
@@ -86,16 +89,18 @@ priv_handle("~"), dist(0.0, 0.2)
     old_bar_y = Eigen::VectorXd::Zero(n_param);
 
     
-    theta = Eigen::VectorXd::Zero(n_param);
+    theta_x = Eigen::VectorXd::Zero(n_param);
+    theta_y = Eigen::VectorXd::Zero(n_param);
+
 
     ROS_INFO_STREAM("Initial Kx" << Kx);
     ROS_INFO_STREAM("Initial Ky" << Ky);
-    ROS_INFO_STREAM("Initial mu" << mu);
-    ROS_INFO_STREAM("Initial kp" << kp);
+    ROS_INFO_STREAM("Initial mux" << mux);
+    ROS_INFO_STREAM("Initial kpx" << kpx);
+     ROS_INFO_STREAM("Initial muy" << muy);
+    ROS_INFO_STREAM("Initial kpy" << kpy);
 
      countk = 0;
-
-
 }
 
 /* Destructor */
@@ -516,16 +521,31 @@ Eigen::Vector3d RLLQTController::Excitation(double& t)
     return excitation;
 }
 
-void RLLQTController::Calc_reward(const Eigen::VectorXd& old_state, const Eigen::Vector3f& old_u, const Eigen::MatrixXd& Q, const double& R)
+double RLLQTController::Calc_reward(const Eigen::VectorXd& old_state, const float& old_u, const Eigen::MatrixXd& Q, const double& R)
 {
-     reward.x() = - old_state.transpose() * Q * old_state - old_u.x() * R * old_u.x();
-    // reward.y() = - state_x.transpose() * Qy * state_x - u.y() * R * u.y();
-    // ROS_INFO_STREAM("reward x"  << reward.x());
 
-    // Reward Pub
+    // Calcula custo quadrático de estado
+    double state_term = (old_state.transpose() * Q * old_state)(0, 0);
+
+    // Custo quadrático de controle (usa norma ao quadrado)
+    double control_term = old_u* R * old_u;
+
+    // Retorna reward (negativo do custo)
+    return -(state_term + control_term);
+}
+
+void RLLQTController::Calc_reward_all()
+{
+    reward.x() = Calc_reward(old_state_x, old_u.x(), Qx, R);
+    reward.y() = Calc_reward(old_state_y, old_u.y(), Qy, R);
+    // reward.z() = Calc_reward(old_state_z, old_u.z(), Qz, R);
+    // reward.z() = Calc_reward(old_state_yaw, old_u.z(), Qyaw, R); // se tiver yaw separado
+
+    // Publica no tópico
     geometry_msgs::Vector3 reward_msg;
     reward_msg.x = reward.x();
     reward_msg.y = reward.y();
+    // reward_msg.z = reward.z();
     reward_pub.publish(reward_msg);
 }
 
@@ -601,6 +621,36 @@ inline void RLLQTController::Calc_Q_lyap(
     }
 }
 
+AxisSystem RLLQTController::buildAxisSystem(double kp, const Eigen::RowVectorXd& K)
+{
+    AxisSystem sys;
+
+    // === Atualiza Ap e Bp ===
+    auto matrices = UpdateMatrices(kp);
+    sys.Ap = matrices.first;
+    sys.Bp = matrices.second;
+
+    // === Monta Aa e Ba ===
+    sys.Aa.resize(7, 7);
+    sys.Ba.resize(7, 1);
+
+    sys.Aa << sys.Ap, Eigen::Matrix<double, 2, 5>::Zero(),
+               Eigen::Matrix<double, 5, 2>::Zero(), Am;  // usa o Am membro da classe
+
+    sys.Ba << sys.Bp, Bm;  // idem, Bm membro da classe
+
+    // === Monta A_dlyap ===
+    sys.A_dlyap.resize(8, 8);
+    sys.A_dlyap.setZero();
+
+    sys.A_dlyap.topLeftCorner(7, 7)     = sys.Aa;
+    sys.A_dlyap.topRightCorner(7, 1)    = sys.Ba;
+    sys.A_dlyap.bottomLeftCorner(1, 7)  = -K * sys.Aa;
+    sys.A_dlyap.bottomRightCorner(1, 1) = -K * sys.Ba;
+
+    return sys;
+}
+
 void RLLQTController::sendCmdVel(double h){
 
     if (flag_pos && flag_vel && flag_ref)
@@ -609,8 +659,10 @@ void RLLQTController::sendCmdVel(double h){
         static double t = 0.0;
         t += h;
 
-        ROS_INFO_STREAM("mu" << mu);
-        ROS_INFO_STREAM("kp" << kp);
+        ROS_INFO_STREAM("mux" << mux);
+        ROS_INFO_STREAM("kpx" << kpx);
+        ROS_INFO_STREAM("muy" << muy);
+        ROS_INFO_STREAM("kpy" << kpy);
 
     
         // x_{k}
@@ -625,67 +677,57 @@ void RLLQTController::sendCmdVel(double h){
 
         // L_{k}
         augmented_state_x << state_x, u.x();
+        augmented_state_y << state_y, u.y();
 
         if(rl)
         {
             // Bar_L_{k-1}
-            Eigen::VectorXd old_bar_x(theta.size());
             old_bar_x = fromx2xbar(old_augmented_state_x);
-            // old_bar_y = fromx2xbar(old_augmented_state_y);
+            old_bar_y = fromx2xbar(old_augmented_state_y);
 
             // Bar_L_{k}
-            Eigen::VectorXd bar_x(theta.size());
             bar_x = fromx2xbar(augmented_state_x);
-            // bar_y = fromx2xbar(augmented_state_y);
+            bar_y = fromx2xbar(augmented_state_y);
 
             // Phi
             phi.resize(3);
-            phi[0] = old_bar_x - pow(gamma, h) * bar_x;
-            // phi[1] = old_bar_y - pow(gamma, h)* gamma * bar_y;
+            phi[0] = old_bar_x - std::pow(gamma, h) * bar_x;
+            phi[1] = old_bar_y - std::pow(gamma, h) * bar_y;
 
             // Reward
-            Calc_reward(old_state_x, old_u, Qx, R);
+            Calc_reward_all();
 
+            auto sys_x   = buildAxisSystem(kpx, Kx);
+            auto sys_y   = buildAxisSystem(kpy, Ky);
+            // auto sys_z   = buildAxisSystem(kp_z, Kz);
+            // auto sys_yaw = buildAxisSystem(kp_yaw, Kyaw);
 
-            auto matrices = UpdateMatrices(kp);
-            Ap = matrices.first;
-            Bp = matrices.second;
-
-            // ROS_INFO_STREAM("Ap" << Ap);
-            // ROS_INFO_STREAM("Bp" << Bp);
-
-            Ba << Bp, Bm;
-        
-            Aa << Ap, Eigen::Matrix<double,2,5>::Zero(),
-            Eigen::Matrix<double,5,2>::Zero(), Am;
-
-            // // Test Dlyap                            
-            A_dlyap.topLeftCorner(7, 7) = Aa;
-            A_dlyap.topRightCorner(7, 1) = Ba;
-            A_dlyap.bottomLeftCorner(1, 7) = -Kx * Aa;
-            A_dlyap.bottomRightCorner(1, 1) = -Kx * Ba;    
-
-        
-            // ROS_INFO_STREAM("Q_dlyap \n" << Q_dlyap);
-            // ROS_INFO_STREAM("A_dlyap \n" << A_dlyap);  
-
+            A_dlyap_x   = sys_x.A_dlyap;
+            A_dlyap_y   = sys_y.A_dlyap;
+            // A_dlyap_z   = sys_z.A_dlyap;
+            // A_dlyap_yaw = sys_yaw.A_dlyap;
 
             H.resize(3);
-            H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap.transpose(), Q_dlyap_x);
+            H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_x.transpose(), Q_dlyap_x);
+            H[1] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_y.transpose(), Q_dlyap_y);
             // ROS_INFO_STREAM("H" << H[0]);
 
-            theta = UpdateTheta(H[0]);
+            theta_x = UpdateTheta(H[0]);
+            theta_y = UpdateTheta(H[1]);
             // ROS_INFO_STREAM("theta" << theta);
 
 
             // error
-            Erls.x() = reward.x() -  phi[0].transpose() * theta;
-            // Erls.y() = reward.y() - phi[1].transpose() * theta;
+            Erls.x() = reward.x() - phi[0].transpose() * theta_x;
+            Erls.y() = reward.y() - phi[1].transpose() * theta_y;
             ROS_INFO_STREAM("erls" << Erls.x());
+            ROS_INFO_STREAM("erls_y" << Erls.y());
 
-            mu = mu + h * (Erls.x());
+            mux = mux + h * (Erls.x());
+            muy = muy + h * (Erls.y());
 
-            kp = mu * ki;
+            kpx = mux * ki;
+            kpy = muy * ki;
 
             // RLS
             // UpdateRLS(theta, phi, Erls, prls, mu);
@@ -698,19 +740,24 @@ void RLLQTController::sendCmdVel(double h){
                 int z = augmented_state_x.size();
                 // ROS_INFO_STREAM("H_hat: \n" << H[0]);
 
-                inv_scalar = 1.0 / H[0](z-1, z-1);
-                Kx = inv_scalar*H[0].row(z-1).segment(0,z-1);
-                // ROS_INFO_STREAM("Updated Kx: " << Kx);
+                inv_scalar_x = 1.0 / H[0](z-1, z-1);
+                inv_scalar_y = 1.0 / H[1](z-1, z-1);
 
-                gain_msg.data.resize(state_x.size());
+                Kx = inv_scalar_x * H[0].row(z-1).segment(0,z-1);
+                Ky = inv_scalar_y * H[1].row(z-1).segment(0,z-1);
+                ROS_INFO_STREAM("Updated Ky: " << Ky);
+
+                gain_msg_y.data.resize(state_x.size());
+                gain_msg_x.data.resize(state_x.size());
+
                 for (int i = 0; i < state_x.size(); i++) 
                 {
-                    gain_msg.data[i] = Kx[i];  
+                    gain_msg_x.data[i] = Kx[i]; 
+                    gain_msg_y.data[i] = Kx[i];   
                 }
-                gain_pub.publish(gain_msg); 
+                gain_pub.publish(gain_msg_x); 
 
                 countk = 0;
-
             
             }
 
@@ -724,8 +771,10 @@ void RLLQTController::sendCmdVel(double h){
 
         // Update param
         old_augmented_state_x = augmented_state_x;
-        // old_augmented_state_y = augmented_state_y;
+        old_augmented_state_y = augmented_state_y;
         old_state_x = state_x;
+        old_state_y = state_y;
+
         old_u = u;
         rl = true;
 
