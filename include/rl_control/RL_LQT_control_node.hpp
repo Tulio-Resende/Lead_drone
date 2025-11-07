@@ -100,7 +100,7 @@ private:
     Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
 
        
-    double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
+    double K0factor, THETA0factor, PRLS0factor, ALPHA0factor, gamma;
     double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, mux, muy, ki;
  
     bool flag_pos = false;
@@ -131,10 +131,7 @@ public:
     Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
     Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter = 1000, double tol = 1e-12);
-    // void UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
-    // void UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu);
     double Calc_reward(const Eigen::VectorXd& old_state, const float& old_u, const Eigen::MatrixXd& Q, const double& R);
-    // void UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap);
     void sendCmdVel(double h);
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
     Eigen::VectorXd UpdateTheta(const Eigen::MatrixXd& H_THETA);
@@ -142,8 +139,8 @@ public:
                      const Eigen::MatrixXd& Cd,
                      const double& Qe,
                      const double R);
-
-    // void Calc_Q_lyap(const Eigen::MatrixXd& Qx, const Eigen::MatrixXd& Qy, const Eigen::MatrixXd& Qz, const Eigen::MatrixXd& Qyaw, const Eigen::MatrixXd& Q_dlyap_x, Q const Eigen::MatrixXd& Cx, const double& Qe, const double& R);
     void Calc_reward_all();
     AxisSystem buildAxisSystem(double kp, const Eigen::RowVectorXd& K);
+    void updateGain(const std::vector<Eigen::MatrixXd>& H);
+
 };

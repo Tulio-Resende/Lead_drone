@@ -13,6 +13,7 @@ priv_handle("~"), dist(0.0, 0.2)
     nh.getParam("kpx", kpx);
     nh.getParam("kpy", kpy);
     nh.getParam("ki", ki);
+    nh.getParam("gamma", gamma);
     nh.getParam("K0factor", K0factor);
     mux = kpx/20;
     muy = kpy/20;
@@ -30,15 +31,6 @@ priv_handle("~"), dist(0.0, 0.2)
     Kx = Kx * K0factor; 
     Ky = Ky * K0factor;
 
-
-    // theta = theta * THETA0factor;
-    // prls = Eigen::MatrixXd::Identity(alpha.size(),alpha.size()) * PRLS0factor;
-    // theta << 52.6334101099504, 10.2162277797894, 4188.82853290319, 1.03540441873538, 2.43711211624183, 0.000346393806324802, 1.54300006451501e-05, 1.00683497461433, 41.2049038660059, -938.638001034116, 9.95443496971824, -22.6452554201491, 0.181374103651703, -0.0569959139571596, 1.06043943182456, -365.189566987842, 5.58149507522191, -8.82355433095529, 0.101742357141362, -0.0223100797616370, 0.528471573951173, -86.2735882200421, 202.070159782202, -1.57122736630554, 0.508218360088234, -9.39701005855973, -2.09592364821546, 0.0378744331055520, -0.00538975260999602, 0.144703357204055, -0.0381754164895553, 0.0122611001906250, -0.227054969366253, -9.82036199459057e-05, 0.00263774819632151, -0.000574166812361116;
-    // THETA0factor = 0.8;
-    // PRLS0factor=10e2;
-
-
-
     std::vector<PlantAxis> axes = {
     {"x", Cmx},
     {"y", Cmy},
@@ -46,10 +38,9 @@ priv_handle("~"), dist(0.0, 0.2)
     // {"yaw", Cmyaw}
     };
 
-    // Calcula todos Q_i e Q_dlyap_i
+    // Q_i e Q_dlyap_i
     Calc_Q_lyap(axes, Cd, Qe, R);
 
-    // Armazena localmente se quiser usar depois
     Qx = axes[0].Q;
     Qy = axes[1].Q;
     // Qz = axes[2].Q;
@@ -59,12 +50,6 @@ priv_handle("~"), dist(0.0, 0.2)
     Q_dlyap_y = axes[1].Q_dlyap;
     // Q_dlyap_z = axes[2].Q_dlyap;
     // Q_dlyap_yaw = axes[3].Q_dlyap;
-
-
-    Ba = Eigen::MatrixXd::Zero(7,1);
-    Aa = Eigen::MatrixXd::Zero(7,7);
-    A_dlyap_x = Eigen::MatrixXd::Zero(8,8);
-    A_dlyap_y = Eigen::MatrixXd::Zero(8,8);
 
     ref_msg = Eigen::VectorXd::Zero(5);
 
@@ -88,17 +73,16 @@ priv_handle("~"), dist(0.0, 0.2)
     bar_y = Eigen::VectorXd::Zero(n_param);
     old_bar_y = Eigen::VectorXd::Zero(n_param);
 
-    
     theta_x = Eigen::VectorXd::Zero(n_param);
     theta_y = Eigen::VectorXd::Zero(n_param);
 
-
-    ROS_INFO_STREAM("Initial Kx" << Kx);
-    ROS_INFO_STREAM("Initial Ky" << Ky);
-    ROS_INFO_STREAM("Initial mux" << mux);
-    ROS_INFO_STREAM("Initial kpx" << kpx);
-     ROS_INFO_STREAM("Initial muy" << muy);
-    ROS_INFO_STREAM("Initial kpy" << kpy);
+    
+    // ROS_INFO_STREAM("Initial Kx" << Kx);
+    // ROS_INFO_STREAM("Initial Ky" << Ky);
+    // ROS_INFO_STREAM("Initial mux" << mux);
+    // ROS_INFO_STREAM("Initial kpx" << kpx);
+    // ROS_INFO_STREAM("Initial muy" << muy);
+    // ROS_INFO_STREAM("Initial kpy" << kpy);
 
      countk = 0;
 }
@@ -125,7 +109,6 @@ void RLLQTController::configPublishers()
     reward_pub = handle.advertise<std_msgs::Float64>("/rl_control/reward", 1);
     gain_pub = handle.advertise<std_msgs::Float64MultiArray>("/rl_control/gain", 1);
 
-
 }
 void RLLQTController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
 {
@@ -150,41 +133,17 @@ void RLLQTController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& 
         flag_vel = true;
 
         // ROS_INFO_STREAM("vel "<< cur_vel);
-
     }
 }
 void RLLQTController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg)
 {
-    
+    ref_msg.resize(msg->data.size());
     for (int i = 0; i < 5; i++) {
         ref_msg(i) = msg->data[i];
         // ROS_INFO("ref[%d] = %f", i, ref_msg(i));
     }
     flag_ref = true;
 }
-
-// Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
-// {
-//     int n = x.size();
-
-//     int m = n + (n* (n-1))/2;
-//     Eigen::VectorXd xbar(m);
-    
-//     int k = 0;
-
-//     for (int i = 0; i < n; i++) 
-//     {
-//         xbar(k++) = x(i) * x(i);
-//     }
-
-//     for (int i = 0; i < n - 1; i++) {
-//         for (int j = i + 1; j < n; j++) 
-//         {
-//             xbar(k++) = x(i) * x(j);
-//         }
-//     }
-//     return -xbar;
-// }
 
 Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
 {
@@ -208,56 +167,6 @@ Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
     }
     return -xbar;
 }
-
-// Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
-// {
-
-//     int N = (sizeOfAugState * (sizeOfAugState + 1))/2;
-
-//     Eigen::MatrixXd indx(N, 2);
-
-//     int count = 0;
-
-//     for (int i = 0; i < sizeOfAugState; i++)
-//     {
-//         indx(count, 0) = i;
-//         indx(count, 1) = i; 
-//         count++;
-//     }
-  
-//     for(int i = 0; i < sizeOfAugState; i++)
-//     {
-//         for(int j = i+1; j < sizeOfAugState; j++)
-//         {   
-//             indx(count, 0) = i;
-//             indx(count, 1) = j; 
-//             count++;
-//         }
-//     }
-
-//     Eigen::MatrixXd Pout1, Pout2, Pout;
-
-//     Pout1 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
-//     Pout2 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
-//     Pout  = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
-//     int k = 0;
-
-//     for (int i = 0; i < sizeOfAugState; i++)
-//     {
-//         Pout1(indx(i, 0), indx(i, 1)) = theta(k);
-//         k++;
-//     }
-
-//     for (int i = sizeOfAugState; i < N; i++)
-//     {
-//         Pout2(indx(i, 0), indx(i, 1)) = theta(k)/2;
-//         k++;
-//     }
-
-//     Pout = Pout1 + Pout2 + Pout2.transpose();
-
-//     return Pout; 
-// }
 
 Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
 {
@@ -308,115 +217,6 @@ Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int 
 
     return Pout; 
 }
-
-// void RLLQTController::UpdateRLSALPHA(Eigen::VectorXd& alpha, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu)
-// {
-//     double phiT_P_phi = phi[0].transpose()* N * prls * N.transpose()* phi[0];
-//     if (phiT_P_phi > 1e-12) 
-//     {
-//         alpha = alpha + (prls * N.transpose() * phi[0] * Erls.x()) / (mu + phiT_P_phi);
-//         prls = (1.0/mu) * prls - (1.0/mu) * (prls * N.transpose() * phi[0] * phi[0].transpose() * N * prls) / (mu + phiT_P_phi);
-//     }
-// }
-
-// void RLLQTController::UpdateRLS(Eigen::VectorXd& theta, std::vector<Eigen::VectorXd>& phi, Eigen::Vector3d& Erls, Eigen::MatrixXd& prls, double& mu)
-// {
-//     double phiT_P_phi = phi[0].transpose() * prls * phi[0];
-//     if (phiT_P_phi > 1e-6) // evita divisões por zero ou muito pequenas
-//     {
-//         theta = theta + (prls * phi[0] * Erls.x()) / (mu + phiT_P_phi);
-//         prls = (1.0/mu) * prls - (1.0/mu) * (prls * phi[0] * phi[0].transpose() * prls) / (mu + phiT_P_phi);
-//     }
-//     // ROS_INFO_STREAM("theta" << theta);
-// }
-
-// void RLLQTController::UpdateGain(Eigen::VectorXd& theta, const Eigen::MatrixXd& A_dlyap, const Eigen::MatrixXd& Q_dlyap)
-// {
-//     // Recovering H from theta
-//     int z = augmented_state_x.size();
- 
-//     H.resize(3);
-//     H[0] = FromTHETAtoP(theta, z);
-//     ROS_INFO_STREAM("H_hat: \n" << H[0]);
-
-//     // Eigen::MatrixXd H0 = H[0];
-
-//     // // --- Calcula autovalores ---
-//     // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(H0);
-//     // Eigen::VectorXd eigvals = eig.eigenvalues();
-
-//     // std::cout << "Autovalores originais:\n" << eigvals.transpose() << "\n";
-
-//     // // --- Pega o menor autovalor ---
-//     // double lambda_min = eigvals.minCoeff();
-//     // std::cout << "Menor autovalor = " << lambda_min << "\n";
-
-//     // // --- Se for <= 0, faz o shift ---
-//     // double eps = 1e-8;
-//     // double factor = (lambda_min < eps) ? (-lambda_min + eps) : 0.0;
-//     // H0 = H0 + factor * Eigen::MatrixXd::Identity(H0.rows(), H0.cols());
-//     // H[0] = H0;
-//     // std::cout << "\nShift aplicado (factor) = " << factor << "\n";
-//     // std::cout << "Matriz H_pd = \n" << H[0] << "\n";
-
-//     // // --- Verifica autovalores após o shift ---
-//     // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig_pd(H0);
-//     // std::cout << "\nAutovalores após shift:\n" << eig_pd.eigenvalues().transpose() << "\n";
-
-//     // Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(H0);
-//     // int rank = lu_decomp.rank();
-    
-//     if (true)
-//     {
-//         // Update Gain
-//         //TODO: is there a better way to do that?
-        
-//         switch(dlyap_flag)
-//         {
-//             case 0:
-//                 inv_scalar = 1.0 / H[0](z-1, z-1);
-//                 switch(gain_update)
-//                 {
-//                 case 1:
-//                     ROS_INFO_STREAM("Gain updated directly");
-//                     Kx = inv_scalar*H[0].row(z-1).segment(0,z-1);
-//                     ROS_INFO_STREAM("Updated Kx: " << Kx);
-//                     // H[0] = dlyap_iterative(A_dlyap, Q_dlyap);
-//                     // ROS_INFO_STREAM("H: \n" << H[0]);
-
-                                
-//                     gain_msg.data.resize(state_x.size());
-//                     for (int i = 0; i < state_x.size(); i++) 
-//                     {
-//                         gain_msg.data[i] = Kx[i];  
-//                     }
-//                     gain_pub.publish(gain_msg); 
-//                     break;
-//                 default:
-//                     ROS_INFO_STREAM("Gain is not updated directly");
-//                     Eigen::RowVectorXd K_diff;
-//                     K_diff = inv_scalar*H[0].row(z-1).segment(0,z-1);
-//                     ROS_INFO_STREAM("Updated Kxx: " << K_diff);
-//                     break;
-//                 }
-//                 break;
-//             default:
-//                 ROS_INFO_STREAM("DLYAP");
-//                 H[0] = dlyap_iterative(A_dlyap, Q_dlyap);
-//                 ROS_INFO_STREAM("H: \n" << H[0]);
-//                 inv_scalar = 1.0 / H[0](z-1, z-1);
-//                 Kx = inv_scalar*H[0].row(z-1).segment(0,z-1);
-//                 ROS_INFO_STREAM("Updated Kx: " << Kx);
-//                 break;
-//         }
-
-//         countk = 0;
-//     }
-//     else
-//     {
-//         // ROS_INFO_STREAM("Poor rank" << rank);            
-//     }
-// }
 
 Eigen::MatrixXd RLLQTController::kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B)
 {
@@ -597,11 +397,7 @@ std::pair<Eigen::MatrixXd, Eigen::MatrixXd> RLLQTController::UpdateMatrices(cons
     return std::make_pair(Ap, Bp);
 }
 
-inline void RLLQTController::Calc_Q_lyap(
-    std::vector<PlantAxis>& axes,
-    const MatrixXd& Cd,
-    const double& Qe,
-    const double R)
+inline void RLLQTController::Calc_Q_lyap(std::vector<PlantAxis>& axes, const MatrixXd& Cd, const double& Qe, const double R)
 {
     for (auto& axis : axes)
     {
@@ -655,7 +451,6 @@ void RLLQTController::sendCmdVel(double h){
 
     if (flag_pos && flag_vel && flag_ref)
     {
-        double gamma = 0.5;
         static double t = 0.0;
         t += h;
 
@@ -669,7 +464,6 @@ void RLLQTController::sendCmdVel(double h){
         state_x << cur_pos.x(), cur_vel.x(), ref_msg;
         state_y << cur_pos.y(), cur_vel.y(), ref_msg;
 
-        // excitation = Excitation(t); 
         // u_{k}
         u.x() = - Kx * state_x;
         u.y() = - Ky * state_y;
@@ -681,11 +475,11 @@ void RLLQTController::sendCmdVel(double h){
 
         if(rl)
         {
-            // Bar_L_{k-1}
+            // Bar_L_{k}
             old_bar_x = fromx2xbar(old_augmented_state_x);
             old_bar_y = fromx2xbar(old_augmented_state_y);
 
-            // Bar_L_{k}
+            // Bar_L_{k+1}
             bar_x = fromx2xbar(augmented_state_x);
             bar_y = fromx2xbar(augmented_state_y);
 
@@ -726,17 +520,13 @@ void RLLQTController::sendCmdVel(double h){
             mux = mux + h * (Erls.x());
             muy = muy + h * (Erls.y());
 
+            // kp Control
             kpx = mux * ki;
             kpy = muy * ki;
-
-            // RLS
-            // UpdateRLS(theta, phi, Erls, prls, mu);
-
 
             if (countk > 400)
             {
                 
-                // UpdateGain(theta, A_dlyap.transpose()*sqrt(pow(gamma, h)), Q_dlyap);
                 int z = augmented_state_x.size();
                 // ROS_INFO_STREAM("H_hat: \n" << H[0]);
 
@@ -796,12 +586,9 @@ int main(int argc, char **argv){
 
     ros::Time start_time = ros::Time::now();
 
-    ros::Rate sampling_rate(50);    // Hertz
+    ros::Rate sampling_rate(50); 
     while(ros::ok()){
 
-        // ros::Time current_time = ros::Time::now();
-
-        // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
         ros::spinOnce();
         rl_lqt.sendCmdVel(h);

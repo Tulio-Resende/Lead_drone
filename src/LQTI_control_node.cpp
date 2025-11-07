@@ -1,19 +1,36 @@
 #include "rl_control/LQTI_control_node.hpp"
+#include "rl_control/param_loader.hpp"
+
 
 /* Constructor */
-LQTIController::LQTIController(/* args */): 
+LQTIController::LQTIController(ros::NodeHandle& nh): 
 priv_handle("~")
 {
     ROS_DEBUG("Constructor called.");
-    yss = 2;
+
+    int n_state = 2;
     cur_pos = Eigen::Vector3d::Zero();
     tilde_mu =  Eigen::Vector3d::Zero();
     old_pos = Eigen::Vector3d::Zero();
     old_vel = Eigen::Vector3d::Zero();
     tilde_pos = Eigen::Vector3d::Zero();
     tilde_vel = Eigen::Vector3d::Zero();
-    old_u = Eigen::Vector3d::Zero();
+    old_u = Eigen::Vector3f::Zero(3);
+    old_state_x = Eigen::VectorXd::Zero(n_state);
+    old_state_y = Eigen::VectorXd::Zero(n_state);
+    old_y = Eigen::VectorXd::Zero(3);
+    tilde_state_x = Eigen::VectorXd::Zero(3);
+    tilde_state_y = Eigen::VectorXd::Zero(3);
 
+
+    // nh.getParam("Qe_LQTI", Qe);
+    // nh.getParam("R_LQTI", R);
+    // nh.getParam("gamma_LQTI", gamma);
+    nh.getParam("yss", yss);
+
+    loadMatrix(nh, "Kx_LQTI", Kx);
+    loadMatrix(nh, "Ky_LQTI", Ky);
+    loadMatrix(nh, "Cd", Cd);
 }
 
 /* Destructor */
@@ -33,6 +50,11 @@ void LQTIController::configSubscribers()
     curPosSub = handle.subscribe("/dji_sdk/local_position", 1, &LQTIController::receivePos, this);
     curVelSub = handle.subscribe("/dji_sdk/velocity", 1, &LQTIController::receiveVel, this);
 }
+void LQTIController::configPublishers(){
+    vel_pub = handle.advertise<sensor_msgs::Joy>("/dji_sdk/flight_control_setpoint_generic", 1);
+
+}
+
 
 void LQTIController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
 {
@@ -44,7 +66,7 @@ void LQTIController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg
         // ROS_INFO("Posx %f", cur_pos.x());
         // ROS_INFO("Posy %f", cur_pos.y());
 
-        flag = true;
+        flag_pos = true;
 
         // ROS_INFO_STREAM("Current position: " << "(" << cur_pos[0] << ", " << cur_pos[1] << ", " << cur_pos[2] <<")");
     }
@@ -57,19 +79,21 @@ void LQTIController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& m
         cur_vel.y() = msg->vector.y;
         cur_vel.z() = msg->vector.z;
     }
-}
+    flag_vel = true;
+    // ROS_INFO_STREAM("cur vel" << cur_vel);
 
+}
 
 void LQTIController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg)
-{
-    
+{   
+    ref_msg.resize(msg->data.size());
+
     for (int i = 0; i < 4; i++) {
-        ref_msg[i] = msg->data[i];
+        ref_msg(i) = msg->data[i];
         // ROS_INFO("Node configured. ref[%d] = %f", i, ref_msg[i]);
     }
-}
-void LQTIController::configPublishers(){
-    vel_pub = handle.advertise<sensor_msgs::Joy>("/dji_sdk/flight_control_setpoint_generic", 1);
+    flag_ref = true;
+    // ROS_INFO_STREAM("ref" << ref_msg);
 
 }
 
@@ -78,29 +102,60 @@ void LQTIController::sendCmdVel(double h){
 
     // Gain calculated using idare in the Matlab file for the G_x = 1.3/s(s + 1.5) 
     // augmented with the reference model and integral action
-    if (flag){
-        tilde_mu.x() = h*(yss - old_pos.x());
-        tilde_mu.y() = h*(yss - old_pos.y());
+    if (flag_pos && flag_ref && flag_vel){
 
-        tilde_pos.x() = cur_pos.x() - old_pos.x();
-        tilde_pos.y() = cur_pos.y() - old_pos.y();
+        if(flag_first_time)
+        {
+            old_pos = cur_pos;
+            old_vel = cur_vel;
+            ROS_INFO_STREAM("old_pos" << old_pos);
+            ROS_INFO_STREAM("old_vel"<< old_vel);
 
-        // ROS_INFO_STREAM("Til Pos: " << tilde_pos);
+            ROS_INFO_STREAM("test");
+        }
 
-        tilde_vel.x() = cur_vel.x() - old_vel.x();
-        tilde_vel.y() = cur_vel.y() - old_vel.y();
-    
-        double K_x1 = 3.7832, K_x2 =  1.3718; 
+        old_state_x << old_pos.x(), old_vel.x();
+        old_state_y << old_pos.y(), old_vel.x();
 
-        double k_mu = -3.2953;
-                    
-        double Kx_m1 = -0.4564, Kx_m2 = 0.0077, Kx_m3 = -0.0095, Kx_m4 = 0.0001;
+        old_y.x() = (Cd * old_state_x)(0);
+        old_y.y() = (Cd * old_state_y)(0);
 
-        double Ky_m1 = 0.0156, Ky_m2 = 0.0139, Ky_m3 = 0.0007, Ky_m4 = 0.0006;
+        ROS_INFO_STREAM("old_y" << old_y.x());
 
-        // ROS_INFO_STREAM("u de x: " << -K_x1*tilde_pos.x());
-        tilde_u.x() = -K_x1*tilde_pos.x() - K_x2*tilde_vel.x() - k_mu*tilde_mu.x() - Kx_m1*ref_msg[0] - Kx_m2*ref_msg[1] - Kx_m3*ref_msg[2] - Kx_m4*ref_msg[3];
-        tilde_u.y() = -K_x1*tilde_pos.y() - K_x2*tilde_vel.y() - k_mu*tilde_mu.y() - Ky_m1*ref_msg[0] - Ky_m2*ref_msg[1] - Ky_m3*ref_msg[2] - Ky_m4*ref_msg[3];
+
+        tilde_mu.x() = h*(yss - old_y.x());
+        tilde_mu.y() = h*(yss - old_y.y());
+
+        ROS_INFO_STREAM("tilde_mu" << tilde_mu.x());
+
+        tilde_pos = cur_pos - old_pos;
+        // tilde_pos.x() = cur_pos.x() - old_pos.x();
+        // tilde_pos.y() = cur_pos.y() - old_pos.y();
+        ROS_INFO_STREAM("tilde_pos" << tilde_pos);
+
+
+        tilde_vel = cur_vel - old_vel;
+
+        ROS_INFO_STREAM("tilde_vel" << tilde_vel);
+
+        // tilde_vel.x() = cur_vel.x() - old_vel.x();
+        // tilde_vel.y() = cur_vel.y() - old_vel.y();
+        tilde_state_x << tilde_pos.x(), tilde_vel.x(), tilde_mu.x();
+        tilde_state_y << tilde_pos.y(), tilde_vel.y(), tilde_mu.y();
+
+        ROS_INFO_STREAM("tilde_state_x" << tilde_state_x);
+
+        tilde_u.x() = static_cast<float>(-Kx.segment(0,3).dot(tilde_state_x)
+                                 - Kx.segment(3,4).dot(ref_msg));
+
+        tilde_u.y() = static_cast<float>(-Ky.segment(0,3).dot(tilde_state_y)
+                                 - Ky.segment(3,4).dot(ref_msg));
+
+        ROS_INFO_STREAM("tilde_u" << tilde_u.x());
+
+
+        // tilde_u.x() = - Kx.segment(0,3) * tilde_state.x() - Kx.segment(3,7) * ref_msg;
+        // tilde_u.y() = - Ky.segment(0,3) * tilde_state.y() - Ky.segment(3,7) * ref_msg;
         tilde_u.z() = 0.0;
 
         // ROS_INFO_STREAM("U til: " << tilde_u);
@@ -109,7 +164,8 @@ void LQTIController::sendCmdVel(double h){
         u.y() = old_u.y() + tilde_u.y();
         u.z() = 0.0;
 
-        // ROS_INFO_STREAM("U: " << u);
+        ROS_INFO_STREAM("u" << u);
+
     
         vel_msg.header.stamp = ros::Time::now();
         vel_msg.header.frame_id = "ground_ENU";
@@ -117,42 +173,31 @@ void LQTIController::sendCmdVel(double h){
 
         vel_pub.publish(vel_msg);
 
-
-        old_pos.x() = cur_pos.x();
-        old_pos.y() = cur_pos.y();
-        old_vel.x() = cur_vel.x();
-        old_vel.y() = cur_vel.y();
-        old_u.x() = u.x();
-        old_u.y() = u.y();
+        old_pos = cur_pos;
+        old_vel = cur_vel;
+        old_u =  u;
+        flag_first_time = false;
     }
-
-
- 
-    // ROS_INFO("mu = %f", mu.x());
-    // ROS_INFO("mu = %f", mu.y());
-
-
 }
 
 int main(int argc, char **argv){
 
     ros::init(argc, argv, "LQTI_control_node");
     ROS_INFO("This node has started.");
-    LQTIController nh;
 
-    nh.configNode();
+    ros::NodeHandle nh;
+    LQTIController lqti(nh);
+
+    lqti.configNode();
 
     ros::Time start_time = ros::Time::now();
 
     ros::Rate sampling_rate(50);    // Hertz
     while(ros::ok()){
 
-        // ros::Time current_time = ros::Time::now();
-
-        // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
         ros::spinOnce();
-        nh.sendCmdVel(h);
+        lqti.sendCmdVel(h);
 
         sampling_rate.sleep();
     }

@@ -5,11 +5,29 @@
 ReferenceGenerator::ReferenceGenerator(ros::NodeHandle& nh): 
 priv_handle("~")
 {
-   
-    loadMatrix(nh, "Am", Am);
-    loadVector(nh, "xm", xm);
-    loadMatrix(nh, "Cmx", Cmx);
-    loadMatrix(nh, "Cmy", Cmy);
+    ROS_INFO_STREAM("flag" << flag_LQT);
+    switch(flag_LQT)
+    {
+        case 1:
+            loadMatrix(nh, "Am", Am);
+            loadVector(nh, "xm", xm);
+            loadMatrix(nh, "Cmx", Cmx);
+            loadMatrix(nh, "Cmy", Cmy);
+            break;
+        case 0:
+            loadMatrix(nh, "Am_LQTI", Am);
+            loadVector(nh, "xm_LQTI", xm);
+            loadMatrix(nh, "Cmx_LQTI", Cmx);
+            loadMatrix(nh, "Cmy_LQTI", Cmy);
+            nh.getParam("yss", yss);
+
+            break;
+    }
+
+    ROS_INFO_STREAM("Am" << Am);
+    ROS_INFO_STREAM("xm" << xm);
+    ROS_INFO_STREAM("Cmx" << Cmx);
+    ROS_INFO_STREAM("Cmy" << Cmy);
 
     
     ROS_DEBUG("Constructor called.");
@@ -99,27 +117,36 @@ void ReferenceGenerator::sendRefPos(double h){
     static double t = 0.0;
     t += h;
    
-    output_ref.header.stamp = ros::Time::now();
-    output_ref.vector.x = (Cmx * xm).value(); //+ yss
-    output_ref.vector.y = (Cmy * xm).value(); //+ yss
-    // output_ref.x = Cmx * xm; //+ yss
-    // output_ref.y = Cmy * xm; //+ yss
+    // output_ref.header.stamp = ros::Time::now();
 
-    // ROS_INFO_STREAM("out" << output_ref);
 
-    out_ref_pub.publish(output_ref);
 
-    ref_msg.data.resize(5);
-   
-    for (int i = 0; i < 5; i++) 
+    if(flag_LQT)
     {
-        ref_msg.data[i] = xm(i);  
+        output_ref.vector.x = (Cmx * xm).value(); 
+        output_ref.vector.y = (Cmy * xm).value(); 
+        ref_msg.data.resize(5);
+        for (int i = 0; i < 5; i++) 
+        {
+            ref_msg.data[i] = xm(i);  
+        }
+    }
+    else
+    {
+        output_ref.vector.x = (Cmx * xm).value() + yss;
+        output_ref.vector.y = (Cmy * xm).value() + yss;
+        ref_msg.data.resize(4);
+        for (int i = 0; i < 4; i++) 
+        {
+            ref_msg.data[i] = xm(i);  
+        }
     }
     
+    out_ref_pub.publish(output_ref);
     ref_cmd_pub.publish(ref_msg);
 
     xm = Am * xm;
-     
+    
 }
 
 int main(int argc, char **argv){

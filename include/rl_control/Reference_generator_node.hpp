@@ -40,7 +40,11 @@ private:
 
     std_srvs::SetBool srv;
 
+    double yss;
+
     Eigen::Vector3d excitation;
+
+    bool flag_LQT = false;
 
 
 public:
