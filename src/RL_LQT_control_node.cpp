@@ -76,15 +76,7 @@ priv_handle("~"), dist(0.0, 0.2)
     theta_x = Eigen::VectorXd::Zero(n_param);
     theta_y = Eigen::VectorXd::Zero(n_param);
 
-    
-    // ROS_INFO_STREAM("Initial Kx" << Kx);
-    // ROS_INFO_STREAM("Initial Ky" << Ky);
-    // ROS_INFO_STREAM("Initial mux" << mux);
-    // ROS_INFO_STREAM("Initial kpx" << kpx);
-    // ROS_INFO_STREAM("Initial muy" << muy);
-    // ROS_INFO_STREAM("Initial kpy" << kpy);
-
-     countk = 0;
+    countk = 0;
 }
 
 /* Destructor */
@@ -106,9 +98,9 @@ void RLLQTController::configSubscribers()
 void RLLQTController::configPublishers()
 {
     vel_pub = handle.advertise<sensor_msgs::Joy>("/dji_sdk/flight_control_setpoint_generic", 1);
-    reward_pub = handle.advertise<std_msgs::Float64>("/rl_control/reward", 1);
+    reward_pub = handle.advertise<geometry_msgs::Vector3>("/rl_control/reward", 1);
     gain_pub = handle.advertise<std_msgs::Float64MultiArray>("/rl_control/gain", 1);
-
+    cost_pub = handle.advertise<geometry_msgs::Vector3>("/rl_control/cost", 1);
 }
 void RLLQTController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
 {
@@ -132,7 +124,7 @@ void RLLQTController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& 
 
         flag_vel = true;
 
-        // ROS_INFO_STREAM("vel "<< cur_vel);
+        ROS_INFO_STREAM("vel "<< cur_vel);
     }
 }
 void RLLQTController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg)
@@ -334,12 +326,12 @@ double RLLQTController::Calc_reward(const Eigen::VectorXd& old_state, const floa
     return -(state_term + control_term);
 }
 
-void RLLQTController::Calc_reward_all()
+void RLLQTController::Calc_reward_all(double& t)
 {
     reward.x() = Calc_reward(old_state_x, old_u.x(), Qx, R);
     reward.y() = Calc_reward(old_state_y, old_u.y(), Qy, R);
     // reward.z() = Calc_reward(old_state_z, old_u.z(), Qz, R);
-    // reward.z() = Calc_reward(old_state_yaw, old_u.z(), Qyaw, R); // se tiver yaw separado
+    // reward.yaw() = Calc_reward(old_state_yaw, old_u.z(), Qyaw, R); // se tiver yaw separado
 
     // Publica no tópico
     geometry_msgs::Vector3 reward_msg;
@@ -347,6 +339,20 @@ void RLLQTController::Calc_reward_all()
     reward_msg.y = reward.y();
     // reward_msg.z = reward.z();
     reward_pub.publish(reward_msg);
+
+    totalCost(reward, t);
+
+}
+void RLLQTController::totalCost(const Eigen::Vector3d& reward, double& t)
+{
+    geometry_msgs::Vector3 cost_msg;
+    cost = std::pow(gamma, t) * reward;
+
+    cost_msg.x = cost.x();
+    cost_msg.y = cost.y();
+    // cost_msg.z = cost.z();
+    cost_pub.publish(cost_msg);
+
 }
 
 Eigen::VectorXd RLLQTController::UpdateTheta(const Eigen::MatrixXd& H_THETA)
@@ -417,7 +423,7 @@ inline void RLLQTController::Calc_Q_lyap(std::vector<PlantAxis>& axes, const Mat
     }
 }
 
-AxisSystem RLLQTController::buildAxisSystem(double kp, const Eigen::RowVectorXd& K)
+AxisSystem RLLQTController::buildAxisSystem(double& kp, const Eigen::RowVectorXd& K)
 {
     AxisSystem sys;
 
@@ -450,9 +456,8 @@ AxisSystem RLLQTController::buildAxisSystem(double kp, const Eigen::RowVectorXd&
 void RLLQTController::sendCmdVel(double h){
 
     if (flag_pos && flag_vel && flag_ref)
-    {
+    {       
         static double t = 0.0;
-        t += h;
 
         ROS_INFO_STREAM("mux" << mux);
         ROS_INFO_STREAM("kpx" << kpx);
@@ -463,6 +468,7 @@ void RLLQTController::sendCmdVel(double h){
         // x_{k}
         state_x << cur_pos.x(), cur_vel.x(), ref_msg;
         state_y << cur_pos.y(), cur_vel.y(), ref_msg;
+
 
         // u_{k}
         u.x() = - Kx * state_x;
@@ -475,6 +481,7 @@ void RLLQTController::sendCmdVel(double h){
 
         if(rl)
         {
+           
             // Bar_L_{k}
             old_bar_x = fromx2xbar(old_augmented_state_x);
             old_bar_y = fromx2xbar(old_augmented_state_y);
@@ -489,7 +496,7 @@ void RLLQTController::sendCmdVel(double h){
             phi[1] = old_bar_y - std::pow(gamma, h) * bar_y;
 
             // Reward
-            Calc_reward_all();
+            Calc_reward_all(h);
 
             auto sys_x   = buildAxisSystem(kpx, Kx);
             auto sys_y   = buildAxisSystem(kpy, Ky);
@@ -550,13 +557,14 @@ void RLLQTController::sendCmdVel(double h){
                 countk = 0;
             
             }
+            t += h;     
 
         }
               
         // Control Signal Pub
         vel_msg.header.stamp = ros::Time::now();
         vel_msg.header.frame_id = "ground_ENU";
-        vel_msg.axes = {u.x(), u.y(), u.z(), 0.0f, 73};
+        vel_msg.axes = {static_cast<float>(u.x()), static_cast<float>(u.y()), static_cast<float>(u.z()), 0.0, 73};
         vel_pub.publish(vel_msg);
 
         // Update param
@@ -568,7 +576,7 @@ void RLLQTController::sendCmdVel(double h){
         old_u = u;
         rl = true;
 
-        countk++;     
+        countk++;
     }
     
 }

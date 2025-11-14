@@ -7,6 +7,5 @@
 
     <node pkg="rl_control" type="LQTI_control_node" name="LQTI_control_node"/>
     <node pkg="rl_control" type="Reference_generator_node" name="Reference_generator_node"/>
-    <node pkg="rl_control" type="Model_system_node" name="Model_system_node"/>
 </launch>
 

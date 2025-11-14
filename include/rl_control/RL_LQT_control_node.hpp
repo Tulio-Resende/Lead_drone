@@ -61,6 +61,7 @@ private:
         ros::Publisher vel_pub;
         ros::Publisher reward_pub;
         ros::Publisher gain_pub;
+        ros::Publisher cost_pub;
         
 
     Eigen::VectorXd theta_x, theta_y;
@@ -70,8 +71,10 @@ private:
     // Eigen::MatrixXd N;
 
     std::vector<Eigen::MatrixXd> H;
-    Eigen::Vector3f u, old_u;
+    Eigen::Vector3d u, old_u;
     Eigen::Vector3d Erls, reward;
+    Eigen::Vector3d cost;
+
 
 
     Eigen::Vector3d excitation;
@@ -98,7 +101,6 @@ private:
     Eigen::MatrixXd Qx, Qy, Qz, Qyaw;
     Eigen::MatrixXd A_dlyap_x, A_dlyap_y;
     Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
-
        
     double K0factor, THETA0factor, PRLS0factor, ALPHA0factor, gamma;
     double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, mux, muy, ki;
@@ -106,9 +108,9 @@ private:
     bool flag_pos = false;
     bool flag_vel = false;
     bool flag_ref = false;
+    bool rl = false;
     bool gain_update = true;
     bool dlyap_flag = false;
-    bool rl = false;
    
     sensor_msgs::Joy vel_msg;
     std_msgs::Float64MultiArray gain_msg_x, gain_msg_y;
@@ -139,8 +141,8 @@ public:
                      const Eigen::MatrixXd& Cd,
                      const double& Qe,
                      const double R);
-    void Calc_reward_all();
-    AxisSystem buildAxisSystem(double kp, const Eigen::RowVectorXd& K);
+    void Calc_reward_all(double& h);
+    AxisSystem buildAxisSystem(double& kp, const Eigen::RowVectorXd& K);
     void updateGain(const std::vector<Eigen::MatrixXd>& H);
-
+    void totalCost(const Eigen::Vector3d& reward, double& h);
 };

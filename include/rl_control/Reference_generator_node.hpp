@@ -37,15 +37,13 @@ private:
     Eigen::VectorXd xm;
     Eigen::MatrixXd Cmx;
     Eigen::MatrixXd Cmy;
+    Eigen::Vector3d excitation;
 
     std_srvs::SetBool srv;
 
     double yss;
 
-    Eigen::Vector3d excitation;
-
-    bool flag_LQT = false;
-
+    bool flag_LQT;
 
 public:
 

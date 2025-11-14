@@ -5,7 +5,9 @@
 ReferenceGenerator::ReferenceGenerator(ros::NodeHandle& nh): 
 priv_handle("~")
 {
+    nh.getParam("flag_LQT", flag_LQT);
     ROS_INFO_STREAM("flag" << flag_LQT);
+
     switch(flag_LQT)
     {
         case 1:
@@ -20,16 +22,9 @@ priv_handle("~")
             loadMatrix(nh, "Cmx_LQTI", Cmx);
             loadMatrix(nh, "Cmy_LQTI", Cmy);
             nh.getParam("yss", yss);
-
             break;
     }
-
-    ROS_INFO_STREAM("Am" << Am);
-    ROS_INFO_STREAM("xm" << xm);
-    ROS_INFO_STREAM("Cmx" << Cmx);
-    ROS_INFO_STREAM("Cmy" << Cmy);
-
-    
+   
     ROS_DEBUG("Constructor called.");
 }
 
@@ -117,10 +112,6 @@ void ReferenceGenerator::sendRefPos(double h){
     static double t = 0.0;
     t += h;
    
-    // output_ref.header.stamp = ros::Time::now();
-
-
-
     if(flag_LQT)
     {
         output_ref.vector.x = (Cmx * xm).value(); 
@@ -153,22 +144,27 @@ int main(int argc, char **argv){
 
     ros::init(argc, argv, "Reference_generator_node");
     ROS_INFO("This node has started.");
-
+    
     ros::NodeHandle nh; 
     ReferenceGenerator ref_gen(nh);
 
     ref_gen.configNode();
 
+    bool flag_a3;
+    nh.getParam("flag_a3", flag_a3);
+
     // === Chama o serviço apenas uma vez ===
-    if (!ref_gen.waitForPlant(true)) {
+    if (!flag_a3)
+    {
+        if (!ref_gen.waitForPlant(true)) {
         ROS_ERROR("Não foi possível habilitar o controle. Encerrando nó.");
         return -1;  // Finaliza se falhar
+        }
+        ROS_INFO("Controle habilitado com sucesso! Iniciando geração de referência...");
+
     }
-
-
-    ROS_INFO("Controle habilitado com sucesso! Iniciando geração de referência...");
-
-    ros::Time start_time = ros::Time::now();
+    
+    // ros::Time start_time = ros::Time::now();
 
     ros::Rate sampling_rate(50);    // Hertz
     while(ros::ok()){

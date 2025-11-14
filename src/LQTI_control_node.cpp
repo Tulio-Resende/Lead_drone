@@ -8,6 +8,7 @@ priv_handle("~")
 {
     ROS_DEBUG("Constructor called.");
 
+
     int n_state = 2;
     cur_pos = Eigen::Vector3d::Zero();
     tilde_mu =  Eigen::Vector3d::Zero();
@@ -15,9 +16,12 @@ priv_handle("~")
     old_vel = Eigen::Vector3d::Zero();
     tilde_pos = Eigen::Vector3d::Zero();
     tilde_vel = Eigen::Vector3d::Zero();
-    old_u = Eigen::Vector3f::Zero(3);
+    old_u = Eigen::Vector3d::Zero(3);
+    old_mu = Eigen::Vector3d::Zero(3);
     old_state_x = Eigen::VectorXd::Zero(n_state);
     old_state_y = Eigen::VectorXd::Zero(n_state);
+    state_x = Eigen::VectorXd::Zero(n_state + 1);
+    state_y = Eigen::VectorXd::Zero(n_state + 1);
     old_y = Eigen::VectorXd::Zero(3);
     tilde_state_x = Eigen::VectorXd::Zero(3);
     tilde_state_y = Eigen::VectorXd::Zero(3);
@@ -26,11 +30,23 @@ priv_handle("~")
     // nh.getParam("Qe_LQTI", Qe);
     // nh.getParam("R_LQTI", R);
     // nh.getParam("gamma_LQTI", gamma);
+
     nh.getParam("yss", yss);
 
+    ROS_INFO_STREAM("yss" << yss);
+
+
     loadMatrix(nh, "Kx_LQTI", Kx);
+        ROS_INFO_STREAM("Kx" << Kx);
+
     loadMatrix(nh, "Ky_LQTI", Ky);
+        ROS_INFO_STREAM("Ky" << Ky);
+
     loadMatrix(nh, "Cd", Cd);
+        ROS_INFO_STREAM("Cd" << Cd);
+
+
+    ROS_INFO_STREAM("TEST");
 }
 
 /* Destructor */
@@ -97,7 +113,6 @@ void LQTIController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg
 
 }
 
-
 void LQTIController::sendCmdVel(double h){
 
     // Gain calculated using idare in the Matlab file for the G_x = 1.3/s(s + 1.5) 
@@ -106,77 +121,66 @@ void LQTIController::sendCmdVel(double h){
 
         if(flag_first_time)
         {
-            old_pos = cur_pos;
-            old_vel = cur_vel;
-            ROS_INFO_STREAM("old_pos" << old_pos);
-            ROS_INFO_STREAM("old_vel"<< old_vel);
+            u.x() = 0.0;
+            u.y() = 0.0;
+            u.z() = 0.0;
 
-            ROS_INFO_STREAM("test");
-        }
+            vel_msg.header.stamp = ros::Time::now();
+            vel_msg.header.frame_id = "ground_ENU";
+            vel_msg.axes = {static_cast<float>(u.x()), static_cast<float>(u.y()), static_cast<float>(u.z()), 0.0, 73};
 
-        old_state_x << old_pos.x(), old_vel.x();
-        old_state_y << old_pos.y(), old_vel.x();
-
-        old_y.x() = (Cd * old_state_x)(0);
-        old_y.y() = (Cd * old_state_y)(0);
-
-        ROS_INFO_STREAM("old_y" << old_y.x());
+            vel_pub.publish(vel_msg);
+            flag_first_time = false;
 
 
-        tilde_mu.x() = h*(yss - old_y.x());
-        tilde_mu.y() = h*(yss - old_y.y());
+        }else
+        {
 
-        ROS_INFO_STREAM("tilde_mu" << tilde_mu.x());
+            old_state_x << old_pos.x(), old_vel.x();
+            old_state_y << old_pos.y(), old_vel.y();
 
-        tilde_pos = cur_pos - old_pos;
-        // tilde_pos.x() = cur_pos.x() - old_pos.x();
-        // tilde_pos.y() = cur_pos.y() - old_pos.y();
-        ROS_INFO_STREAM("tilde_pos" << tilde_pos);
+            old_y.x() = (Cd * old_state_x)(0);
+            old_y.y() = (Cd * old_state_y)(0);
 
+            tilde_mu.x() = h*(yss - old_y.x());
+            tilde_mu.y() = h*(yss - old_y.y());
 
-        tilde_vel = cur_vel - old_vel;
+            tilde_pos = cur_pos - old_pos;
+            tilde_vel = cur_vel - old_vel;
 
-        ROS_INFO_STREAM("tilde_vel" << tilde_vel);
+            tilde_state_x << tilde_pos.x(), tilde_vel.x(), tilde_mu.x();
+            tilde_state_y << tilde_pos.y(), tilde_vel.y(), tilde_mu.y();
 
-        // tilde_vel.x() = cur_vel.x() - old_vel.x();
-        // tilde_vel.y() = cur_vel.y() - old_vel.y();
-        tilde_state_x << tilde_pos.x(), tilde_vel.x(), tilde_mu.x();
-        tilde_state_y << tilde_pos.y(), tilde_vel.y(), tilde_mu.y();
+            // ROS_INFO_STREAM("tilde_state_x" << tilde_state_x);
 
-        ROS_INFO_STREAM("tilde_state_x" << tilde_state_x);
+            // tilde_u.x() = static_cast<float>(-Kx.segment(0,3).dot(tilde_state_x)
+            //                         - Kx.segment(3,4).dot(ref_msg));
 
-        tilde_u.x() = static_cast<float>(-Kx.segment(0,3).dot(tilde_state_x)
-                                 - Kx.segment(3,4).dot(ref_msg));
+            // tilde_u.y() = static_cast<float>(-Ky.segment(0,3).dot(tilde_state_y)
+            //                         - Ky.segment(3,4).dot(ref_msg));
 
-        tilde_u.y() = static_cast<float>(-Ky.segment(0,3).dot(tilde_state_y)
-                                 - Ky.segment(3,4).dot(ref_msg));
+            tilde_u.x() = -Kx.segment(0,3).dot(tilde_state_x) - Kx.segment(3,4).dot(ref_msg);
+            tilde_u.y() = -Ky.segment(0,3).dot(tilde_state_y) - Ky.segment(3,4).dot(ref_msg);
+            tilde_u.z() = 0.0;
 
-        ROS_INFO_STREAM("tilde_u" << tilde_u.x());
-
-
-        // tilde_u.x() = - Kx.segment(0,3) * tilde_state.x() - Kx.segment(3,7) * ref_msg;
-        // tilde_u.y() = - Ky.segment(0,3) * tilde_state.y() - Ky.segment(3,7) * ref_msg;
-        tilde_u.z() = 0.0;
-
-        // ROS_INFO_STREAM("U til: " << tilde_u);
-
-        u.x() = old_u.x() + tilde_u.x();
-        u.y() = old_u.y() + tilde_u.y();
-        u.z() = 0.0;
-
-        ROS_INFO_STREAM("u" << u);
-
+            u.x() = old_u.x() + tilde_u.x();
+            u.y() = old_u.y() + tilde_u.y();
+            u.z() = 0.0;
     
-        vel_msg.header.stamp = ros::Time::now();
-        vel_msg.header.frame_id = "ground_ENU";
-        vel_msg.axes = {u.x(), u.y(), u.z(), 0.0, 73};
+            vel_msg.header.stamp = ros::Time::now();
+            vel_msg.header.frame_id = "ground_ENU";
+            vel_msg.axes = {static_cast<float>(u.x()), static_cast<float>(u.y()), static_cast<float>(u.z()), 0.0, 73};
 
-        vel_pub.publish(vel_msg);
+            vel_pub.publish(vel_msg);
+        }
 
         old_pos = cur_pos;
         old_vel = cur_vel;
-        old_u =  u;
-        flag_first_time = false;
+        old_u = u;
+        // old_u.x() =  u.x() + static_cast<float>(Kx.segment(3,4).dot(ref_msg));
+        // old_u.y() =  u.y() + static_cast<float>(Ky.segment(3,4).dot(ref_msg));
+
+
     }
 }
 
