@@ -98,9 +98,6 @@ int main(int argc, char **argv){
     ros::Rate sampling_rate(50);    // Hertz
     while(ros::ok()){
 
-        // ros::Time current_time = ros::Time::now();
-
-        // double h = (current_time - start_time).toSec();
         double h = 1.0/50.0;
         ros::spinOnce();
         nh.sendCmdVel(h);

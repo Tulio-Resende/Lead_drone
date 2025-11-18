@@ -1,4 +1,4 @@
-#include "rl_control/LQTI_control_node.hpp"
+#include "rl_control/RL_LQTI_control_node.hpp"
 #include "rl_control/param_loader.hpp"
 
 
@@ -19,8 +19,8 @@ priv_handle("~")
 
     old_state_x = Eigen::VectorXd::Zero(n_state);
     old_state_y = Eigen::VectorXd::Zero(n_state);
-    tilde_state_x = Eigen::VectorXd::Zero(7);
-    tilde_state_y = Eigen::VectorXd::Zero(7);
+    tilde_state_x = Eigen::VectorXd::Zero(3);
+    tilde_state_y = Eigen::VectorXd::Zero(3);
 
     old_y = Eigen::VectorXd::Zero(3);
 
@@ -110,17 +110,12 @@ void LQTIController::sendCmdVel(double h){
             tilde_pos = cur_pos - old_pos;
             tilde_vel = cur_vel - old_vel;
 
-            tilde_state_x << tilde_pos.x(), tilde_vel.x(), tilde_mu.x(), ref_msg;
-            tilde_state_y << tilde_pos.y(), tilde_vel.y(), tilde_mu.y(), ref_msg;
+            tilde_state_x << tilde_pos.x(), tilde_vel.x(), tilde_mu.x();
+            tilde_state_y << tilde_pos.y(), tilde_vel.y(), tilde_mu.y();
 
-            // tilde_u.x() = -Kx.segment(0,3).dot(tilde_state_x) - Kx.segment(3,4).dot(ref_msg);
-            // tilde_u.y() = -Ky.segment(0,3).dot(tilde_state_y) - Ky.segment(3,4).dot(ref_msg);
-            // tilde_u.z() = 0.0;
-
-            tilde_u.x() = - Kx * tilde_state_x;
-            tilde_u.y() = - Ky * tilde_state_y;
+            tilde_u.x() = -Kx.segment(0,3).dot(tilde_state_x) - Kx.segment(3,4).dot(ref_msg);
+            tilde_u.y() = -Ky.segment(0,3).dot(tilde_state_y) - Ky.segment(3,4).dot(ref_msg);
             tilde_u.z() = 0.0;
-
 
         }
 
@@ -145,7 +140,7 @@ void LQTIController::sendCmdVel(double h){
 
 int main(int argc, char **argv){
 
-    ros::init(argc, argv, "LQTI_control_node");
+    ros::init(argc, argv, "RL_LQTI_control_node");
     ROS_INFO("This node has started.");
 
     ros::NodeHandle nh;

@@ -62,6 +62,8 @@ private:
         ros::Publisher reward_pub;
         ros::Publisher gain_pub;
         ros::Publisher cost_pub;
+        ros::Publisher kp_pub;
+
         
 
     Eigen::VectorXd theta_x, theta_y;
@@ -82,7 +84,7 @@ private:
     Eigen::VectorXd bar_x, bar_y;
 
     Eigen::Vector3d cur_pos, cur_vel;
-    Eigen::VectorXd ref_msg, old_ref_msg;
+    Eigen::VectorXd ref_msg;
     Eigen::VectorXd state_x, state_y, old_state_x, old_state_y;
     std::vector<Eigen::VectorXd> phi;
     Eigen::VectorXd augmented_state_x, augmented_state_y, old_augmented_state_x, old_augmented_state_y;
@@ -90,14 +92,10 @@ private:
 
   
     Eigen::MatrixXd Cd;
-    Eigen::MatrixXd Cmx, Cmy, Cmz, Cmyaw;
+    Eigen::MatrixXd Am, Bm, Cmx, Cmy, Cmz, Cmyaw;
     Eigen::MatrixXd Cax, Cay, Caz, Cayaw;
-    Eigen::MatrixXd Ap;
-    Eigen::MatrixXd Bp;
-    Eigen::MatrixXd Am;
-    Eigen::MatrixXd Bm;
-    Eigen::MatrixXd Aa;
-    Eigen::MatrixXd Ba;
+    Eigen::MatrixXd Ap, Bp;
+    Eigen::MatrixXd Aa, Ba;
     Eigen::MatrixXd Qx, Qy, Qz, Qyaw;
     Eigen::MatrixXd A_dlyap_x, A_dlyap_y;
     Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
@@ -125,16 +123,13 @@ public:
     ros::NodeHandle priv_handle;
 
     void configNode();
+    void sendCmdVel(double h);
+
 
     Eigen::VectorXd fromx2xbar(const Eigen::VectorXd& v);
-    Eigen::MatrixXd FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState);
-    Eigen::Vector3d Excitation(double& t);
-    Eigen::MatrixXd dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q);
-    Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
     Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter = 1000, double tol = 1e-12);
     double Calc_reward(const Eigen::VectorXd& old_state, const float& old_u, const Eigen::MatrixXd& Q, const double& R);
-    void sendCmdVel(double h);
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
     Eigen::VectorXd UpdateTheta(const Eigen::MatrixXd& H_THETA);
     void Calc_Q_lyap(std::vector<PlantAxis>& axes,
@@ -143,6 +138,11 @@ public:
                      const double R);
     void Calc_reward_all(double& h);
     AxisSystem buildAxisSystem(double& kp, const Eigen::RowVectorXd& K);
-    void updateGain(const std::vector<Eigen::MatrixXd>& H);
     void totalCost(const Eigen::Vector3d& reward, double& h);
+
+    // Eigen::MatrixXd FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState);
+    // Eigen::Vector3d Excitation(double& t);
+    // Eigen::MatrixXd dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q);
+    // Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
+    // void updateGain(const std::vector<Eigen::MatrixXd>& H);
 };

@@ -150,8 +150,7 @@ add_executable(Reference_generator_node src/Reference_generator_node.cpp)
 add_executable(Model_system_node src/Model_system_node.cpp)
 add_executable(RL_LQR_control_node src/RL_LQR_control_node.cpp)
 add_executable(RL_LQT_control_node src/RL_LQT_control_node.cpp)
-
-
+add_executable(RL_LQTI_control_node src/RL_LQTI_control_node.cpp)
 
 
 
@@ -171,6 +170,8 @@ add_dependencies(Reference_generator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${
 add_dependencies(Model_system_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(RL_LQR_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(RL_LQT_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(RL_LQTI_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 
 
 
@@ -194,6 +195,9 @@ target_link_libraries(RL_LQR_control_node
   ${catkin_LIBRARIES}
 )
 target_link_libraries(RL_LQT_control_node
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(RL_LQTI_control_node
   ${catkin_LIBRARIES}
 )
 #############

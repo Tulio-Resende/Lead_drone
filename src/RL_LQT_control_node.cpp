@@ -15,8 +15,8 @@ priv_handle("~"), dist(0.0, 0.2)
     nh.getParam("ki", ki);
     nh.getParam("gamma", gamma);
     nh.getParam("K0factor", K0factor);
-    mux = kpx/20;
-    muy = kpy/20;
+    // mux = kpx/20;
+    // muy = kpy/20;
 
     loadMatrix(nh, "Am", Am);
     loadMatrix(nh, "Cmx", Cmx);
@@ -26,6 +26,9 @@ priv_handle("~"), dist(0.0, 0.2)
     loadMatrix(nh, "Kx", Kx);
     loadMatrix(nh, "Ky", Ky);
 
+
+    kpx = kpx/10;
+    kpy = kpy/20;
 
     //initial gain
     Kx = Kx * K0factor; 
@@ -101,6 +104,8 @@ void RLLQTController::configPublishers()
     reward_pub = handle.advertise<geometry_msgs::Vector3>("/rl_control/reward", 1);
     gain_pub = handle.advertise<std_msgs::Float64MultiArray>("/rl_control/gain", 1);
     cost_pub = handle.advertise<geometry_msgs::Vector3>("/rl_control/cost", 1);
+    kp_pub = handle.advertise<geometry_msgs::Vector3>("/rl_control/kp", 1);
+
 }
 void RLLQTController::receivePos(const geometry_msgs::PointStamped::ConstPtr& msg)
 {
@@ -160,72 +165,72 @@ Eigen::VectorXd RLLQTController::fromx2xbar(const Eigen::VectorXd& x)
     return -xbar;
 }
 
-Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
-{
+// Eigen::MatrixXd RLLQTController::FromTHETAtoP(const Eigen::VectorXd& theta, int sizeOfAugState)
+// {
 
-    int N = (sizeOfAugState * (sizeOfAugState + 1))/2;
+//     int N = (sizeOfAugState * (sizeOfAugState + 1))/2;
 
-    Eigen::MatrixXd indx(N, 2);
+//     Eigen::MatrixXd indx(N, 2);
 
-    int count = 0;
+//     int count = 0;
 
-    for (int i = 0; i < sizeOfAugState; i++)
-    {
-        indx(count, 0) = i;
-        indx(count, 1) = i; 
-        count++;
-    }
+//     for (int i = 0; i < sizeOfAugState; i++)
+//     {
+//         indx(count, 0) = i;
+//         indx(count, 1) = i; 
+//         count++;
+//     }
   
-    for(int i = 0; i < sizeOfAugState; i++)
-    {
-        for(int j = i+1; j < sizeOfAugState; j++)
-        {   
-            indx(count, 0) = i;
-            indx(count, 1) = j; 
-            count++;
-        }
-    }
+//     for(int i = 0; i < sizeOfAugState; i++)
+//     {
+//         for(int j = i+1; j < sizeOfAugState; j++)
+//         {   
+//             indx(count, 0) = i;
+//             indx(count, 1) = j; 
+//             count++;
+//         }
+//     }
 
-    Eigen::MatrixXd Pout1, Pout2, Pout;
+//     Eigen::MatrixXd Pout1, Pout2, Pout;
 
-    Pout1 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
-    Pout2 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
-    Pout  = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
-    int k = 0;
+//     Pout1 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
+//     Pout2 = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
+//     Pout  = Eigen::MatrixXd::Zero(sizeOfAugState, sizeOfAugState);
+//     int k = 0;
 
-    for (int i = 0; i < sizeOfAugState; i++)
-    {
-        Pout1(indx(i, 0), indx(i, 1)) = theta(k);
-        k++;
-    }
+//     for (int i = 0; i < sizeOfAugState; i++)
+//     {
+//         Pout1(indx(i, 0), indx(i, 1)) = theta(k);
+//         k++;
+//     }
 
-    for (int i = sizeOfAugState; i < N; i++)
-    {
-        Pout2(indx(i, 0), indx(i, 1)) = theta(k);
-        k++;
-    }
+//     for (int i = sizeOfAugState; i < N; i++)
+//     {
+//         Pout2(indx(i, 0), indx(i, 1)) = theta(k);
+//         k++;
+//     }
 
-    Pout = Pout1 + Pout2 + Pout2.transpose();
+//     Pout = Pout1 + Pout2 + Pout2.transpose();
 
-    return Pout; 
-}
+//     return Pout; 
+// }
 
-Eigen::MatrixXd RLLQTController::kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B)
-{
-    int rowsA = A.rows(), colsA = A.cols();
-    int rowsB = B.rows(), colsB = B.cols();
+// Eigen::MatrixXd RLLQTController::kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B)
+// {
+//     int rowsA = A.rows(), colsA = A.cols();
+//     int rowsB = B.rows(), colsB = B.cols();
 
-    // Kronecker product: A^T ⊗ A
+//     // Kronecker product: A^T ⊗ A
     
-    Eigen::MatrixXd kron(rowsA * rowsB, colsA * colsB);
+//     Eigen::MatrixXd kron(rowsA * rowsB, colsA * colsB);
 
-    for (int i = 0; i < rowsA; i++) {
-        for (int j = 0; j < colsA; j++) {
-            kron.block(i * rowsB, j * colsB, rowsB, colsB) = A(i, j) * B;
-        }
-    }
-    return kron;
-}
+//     for (int i = 0; i < rowsA; i++) {
+//         for (int j = 0; j < colsA; j++) {
+//             kron.block(i * rowsB, j * colsB, rowsB, colsB) = A(i, j) * B;
+//         }
+//     }
+//     return kron;
+// }
 
 Eigen::MatrixXd RLLQTController::dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter, double tol) {
@@ -247,71 +252,71 @@ Eigen::MatrixXd RLLQTController::dlyap_iterative(const Eigen::MatrixXd& A, const
     return P;
 }
 
-Eigen::MatrixXd RLLQTController::dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q) {
+// Eigen::MatrixXd RLLQTController::dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q) {
 
-    int rowsA = A.rows(), colsA = A.cols();
-    Eigen::MatrixXd kron = Eigen::MatrixXd::Zero(rowsA*rowsA, colsA*colsA);
+//     int rowsA = A.rows(), colsA = A.cols();
+//     Eigen::MatrixXd kron = Eigen::MatrixXd::Zero(rowsA*rowsA, colsA*colsA);
 
-    // Verificar se Q é quadrada e tem mesma dimensão que A
-    assert(Q.rows() == rowsA && Q.cols() == rowsA);
+//     // Verificar se Q é quadrada e tem mesma dimensão que A
+//     assert(Q.rows() == rowsA && Q.cols() == rowsA);
     
     
-    // Matriz identidade de dimensão n² × n²
-    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(rowsA*rowsA, rowsA*rowsA);
+//     // Matriz identidade de dimensão n² × n²
+//     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(rowsA*rowsA, rowsA*rowsA);
 
-    kron = kronecker(A, A);
-    Eigen::MatrixXd M = I - kron;
+//     kron = kronecker(A, A);
+//     Eigen::MatrixXd M = I - kron;
     
-    // Vectorizar Q
-    Eigen::VectorXd vecQ = Eigen::Map<const Eigen::VectorXd>(Q.data(), Q.size());
+//     // Vectorizar Q
+//     Eigen::VectorXd vecQ = Eigen::Map<const Eigen::VectorXd>(Q.data(), Q.size());
     
-    // Resolver o sistema linear (mais estável que calcular inversa)
-    Eigen::VectorXd vecP = M.colPivHouseholderQr().solve(vecQ);
+//     // Resolver o sistema linear (mais estável que calcular inversa)
+//     Eigen::VectorXd vecP = M.colPivHouseholderQr().solve(vecQ);
     
-    // Recuperar a matriz P
-    return Eigen::Map<const Eigen::MatrixXd>(vecP.data(), rowsA, rowsA);
-}
+//     // Recuperar a matriz P
+//     return Eigen::Map<const Eigen::MatrixXd>(vecP.data(), rowsA, rowsA);
+// }
 
-Eigen::Vector3d RLLQTController::Excitation(double& t)
-{
-    // // white noise
-    Eigen::Vector3d noise_white, noise_sin, excitation;
+// Eigen::Vector3d RLLQTController::Excitation(double& t)
+// {
+//     // // white noise
+//     Eigen::Vector3d noise_white, noise_sin, excitation;
 
-    // noise_white.x() = dist(generator);
+//     // noise_white.x() = dist(generator);
 
-    // // sinuidal noise
+//     // // sinuidal noise
 
-    // noise_sin.x() =   0.5 * sin(2*M_PI*0.5*t)
-    //                 + 0.4 * sin(2*M_PI*2.0*t)
-    //                 + 0.3 * sin(2*M_PI*5.0*t)
-    //                 + 0.2 * sin(2*M_PI*7.0*t);
+//     // noise_sin.x() =   0.5 * sin(2*M_PI*0.5*t)
+//     //                 + 0.4 * sin(2*M_PI*2.0*t)
+//     //                 + 0.3 * sin(2*M_PI*5.0*t)
+//     //                 + 0.2 * sin(2*M_PI*7.0*t);
 
-    std::default_random_engine generator;
-    std::normal_distribution<double> white_dist{0.0, 1.0}; // unit variance, escalar depois
-    std::vector<double> sine_freqs = {0.2, 0.5, 1.0, 2.5}; // Hz
-    std::vector<double> sine_amps  = {0.12, 0.08, 0.05, 0.03}; // amplitudes
-    double exc = 0.0;
-    // soma de senóides
-    for (size_t i=0;i<sine_freqs.size();++i) {
-        exc += sine_amps[i] * sin(2.0*M_PI * sine_freqs[i] * t + 0.0 /*fase opcional*/);
-    }
-    // ruído branco filtrado (simples: ruído baixo-pass via média móvel)
-    double white = white_dist(generator) * 0.05; // escala do ruído
-    // opcional: filtro simples (exponential lowpass)
-    static double lp_prev = 0.0;
-    double alpha = 0.1; // 0..1 (menor = mais filtrado)
-    lp_prev = alpha * white + (1.0 - alpha) * lp_prev;
-    exc += lp_prev;
+//     std::default_random_engine generator;
+//     std::normal_distribution<double> white_dist{0.0, 1.0}; // unit variance, escalar depois
+//     std::vector<double> sine_freqs = {0.2, 0.5, 1.0, 2.5}; // Hz
+//     std::vector<double> sine_amps  = {0.12, 0.08, 0.05, 0.03}; // amplitudes
+//     double exc = 0.0;
+//     // soma de senóides
+//     for (size_t i=0;i<sine_freqs.size();++i) {
+//         exc += sine_amps[i] * sin(2.0*M_PI * sine_freqs[i] * t + 0.0 /*fase opcional*/);
+//     }
+//     // ruído branco filtrado (simples: ruído baixo-pass via média móvel)
+//     double white = white_dist(generator) * 0.05; // escala do ruído
+//     // opcional: filtro simples (exponential lowpass)
+//     static double lp_prev = 0.0;
+//     double alpha = 0.1; // 0..1 (menor = mais filtrado)
+//     lp_prev = alpha * white + (1.0 - alpha) * lp_prev;
+//     exc += lp_prev;
 
-    // opcional: adicionar PRBS (simples)
-    // static double prbs_last = 0; static double prbs_tlast = 0;
-    // if (t - prbs_tlast > prbs_step) { prbs_last = (rand()&1)? +amp : -amp; prbs_tlast = t; } exc += prbs_last;
+//     // opcional: adicionar PRBS (simples)
+//     // static double prbs_last = 0; static double prbs_tlast = 0;
+//     // if (t - prbs_tlast > prbs_step) { prbs_last = (rand()&1)? +amp : -amp; prbs_tlast = t; } exc += prbs_last;
 
-    excitation.x() = exc;
+//     excitation.x() = exc;
     
-    // ROS_INFO_STREAM("excitation" << excitation);
-    return excitation;
-}
+//     // ROS_INFO_STREAM("excitation" << excitation);
+//     return excitation;
+// }
 
 double RLLQTController::Calc_reward(const Eigen::VectorXd& old_state, const float& old_u, const Eigen::MatrixXd& Q, const double& R)
 {
@@ -524,12 +529,15 @@ void RLLQTController::sendCmdVel(double h){
             ROS_INFO_STREAM("erls" << Erls.x());
             ROS_INFO_STREAM("erls_y" << Erls.y());
 
-            mux = mux + h * (Erls.x());
-            muy = muy + h * (Erls.y());
 
-            // kp Control
-            kpx = mux * ki;
-            kpy = muy * ki;
+            geometry_msgs::Vector3 kp_msg;
+            kp_msg.x = kpx;
+            kp_msg.y = kpy;
+            // cost_msg.z = cost.z();
+            kp_pub.publish(kp_msg);
+
+            kpx = kpx + ki * h * (Erls.x());
+            kpy = kpy + ki * h * (Erls.y());
 
             if (countk > 400)
             {

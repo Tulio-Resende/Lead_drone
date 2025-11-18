@@ -35,25 +35,24 @@ void configSubscribers();
 void configPublishers();
     ros::Publisher vel_pub;
 
-Eigen::VectorXd ref_msg; 
 sensor_msgs::Joy vel_msg;
+
+Eigen::VectorXd ref_msg; 
 Eigen::Vector3d cur_pos, old_pos, tilde_pos;
 Eigen::Vector3d cur_vel, old_vel, tilde_vel;
-Eigen::Vector3d tilde_mu, old_mu;
+Eigen::Vector3d tilde_mu;
+Eigen::VectorXd tilde_state_x, tilde_state_y;
+Eigen::VectorXd old_state_x, old_state_y;
 Eigen::Vector3d u, old_u, tilde_u;
 Eigen::RowVectorXd Kx, Ky, kz;
-Eigen::VectorXd old_state_x, old_state_y, state_x, state_y;
 Eigen::MatrixXd Cd;
 Eigen::VectorXd old_y;
-Eigen::VectorXd tilde_state_x, tilde_state_y;
  
 double yss, gamma;
 bool flag_pos = false;
 bool flag_vel = false;
 bool flag_ref = false;
-bool flag_first_time = true;
-
-
+bool flag_second_time = false;
 
 public:
 
@@ -64,6 +63,5 @@ ros::NodeHandle handle;
 ros::NodeHandle priv_handle;
 
 void configNode();
-
 void sendCmdVel(double h);
 };
