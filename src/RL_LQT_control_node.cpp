@@ -27,9 +27,6 @@ priv_handle("~"), dist(0.0, 0.2)
     loadMatrix(nh, "Ky", Ky);
 
 
-    kpx = kpx/10;
-    kpy = kpy/20;
-
     //initial gain
     Kx = Kx * K0factor; 
     Ky = Ky * K0factor;

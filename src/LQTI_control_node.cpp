@@ -17,10 +17,10 @@ priv_handle("~")
     old_u = Eigen::Vector3d::Zero(3);
     tilde_u = Eigen::Vector3d::Zero(3);
 
-    old_state_x = Eigen::VectorXd::Zero(n_state);
-    old_state_y = Eigen::VectorXd::Zero(n_state);
-    tilde_state_x = Eigen::VectorXd::Zero(7);
-    tilde_state_y = Eigen::VectorXd::Zero(7);
+    old_xDOF = Eigen::VectorXd::Zero(n_state);
+    old_yDOF = Eigen::VectorXd::Zero(n_state);
+    z_tilde_xDOF = Eigen::VectorXd::Zero(7);
+    z_tilde_yDOF = Eigen::VectorXd::Zero(7);
 
     old_y = Eigen::VectorXd::Zero(3);
 
@@ -98,11 +98,11 @@ void LQTIController::sendCmdVel(double h){
         if(flag_second_time)
         {
 
-            old_state_x << old_pos.x(), old_vel.x();
-            old_state_y << old_pos.y(), old_vel.y();
+            old_xDOF << old_pos.x(), old_vel.x();
+            old_yDOF << old_pos.y(), old_vel.y();
 
-            old_y.x() = (Cd * old_state_x)(0);
-            old_y.y() = (Cd * old_state_y)(0);
+            old_y.x() = (Cd * old_xDOF)(0);
+            old_y.y() = (Cd * old_yDOF)(0);
 
             tilde_mu.x() = h*(yss - old_y.x());
             tilde_mu.y() = h*(yss - old_y.y());
@@ -110,15 +110,15 @@ void LQTIController::sendCmdVel(double h){
             tilde_pos = cur_pos - old_pos;
             tilde_vel = cur_vel - old_vel;
 
-            tilde_state_x << tilde_pos.x(), tilde_vel.x(), tilde_mu.x(), ref_msg;
-            tilde_state_y << tilde_pos.y(), tilde_vel.y(), tilde_mu.y(), ref_msg;
+            z_tilde_xDOF << tilde_pos.x(), tilde_vel.x(), tilde_mu.x(), ref_msg;
+            z_tilde_yDOF << tilde_pos.y(), tilde_vel.y(), tilde_mu.y(), ref_msg;
 
             // tilde_u.x() = -Kx.segment(0,3).dot(tilde_state_x) - Kx.segment(3,4).dot(ref_msg);
             // tilde_u.y() = -Ky.segment(0,3).dot(tilde_state_y) - Ky.segment(3,4).dot(ref_msg);
             // tilde_u.z() = 0.0;
 
-            tilde_u.x() = - Kx * tilde_state_x;
-            tilde_u.y() = - Ky * tilde_state_y;
+            tilde_u.x() = - Kx * z_tilde_xDOF;
+            tilde_u.y() = - Ky * z_tilde_yDOF;
             tilde_u.z() = 0.0;
 
 

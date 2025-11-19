@@ -1,0 +1,13 @@
+<launch>
+
+     <rosparam file="$(find rl_control)/config/Parameters.yaml" command="load" />
+     <node pkg="rosbag" type="record" name="rosbag_drone_control" 
+          args="record -o /container_volume/bags/LQT/ /rl_control/output_reference /rl_control/kp /rl_control/gain /rl_control/cost /dji_sdk/flight_control_setpoint_generic /dji_sdk/local_position /dji_sdk/velocity" output="screen"/>
+
+
+    <node pkg="rl_control" type="RL_LQTI_control_node" name="RL_LQTI_control_node"/>
+    <node pkg="rl_control" type="Reference_generator_node" name="Reference_generator_node"/>
+    <node pkg="rl_control" type="Model_system_node" name="Model_system_node"/>
+
+</launch>
+

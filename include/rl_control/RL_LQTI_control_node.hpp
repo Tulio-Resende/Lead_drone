@@ -35,7 +35,7 @@ struct AxisSystem {
 };
 
 
-class LQTIController
+class RLLQTIController
 {
 private:
 
@@ -53,7 +53,7 @@ void configPublishers();
     ros::Publisher reward_pub;
     ros::Publisher gain_pub;
     ros::Publisher cost_pub;
-        
+    ros::Publisher kp_pub;
 
 sensor_msgs::Joy vel_msg;
 std_msgs::Float64MultiArray gain_msg_x, gain_msg_y;
@@ -62,8 +62,8 @@ Eigen::VectorXd ref_msg;
 Eigen::Vector3d cur_pos, old_pos, tilde_pos;
 Eigen::Vector3d cur_vel, old_vel, tilde_vel;
 Eigen::Vector3d tilde_mu;
-Eigen::VectorXd tilde_state_x, tilde_state_y;
-Eigen::VectorXd old_state_x, old_state_y, state_x, state_y;
+Eigen::VectorXd z_tilde_xDOF, z_tilde_yDOF, old_z_tilde_xDOF, old_z_tilde_yDOF;
+Eigen::VectorXd old_xDOF, old_yDOF;
 Eigen::Vector3d u, old_u, tilde_u;
 Eigen::RowVectorXd Kx, Ky, kz;
 Eigen::VectorXd old_y;
@@ -91,7 +91,7 @@ Eigen::VectorXd bar_x, bar_y;
 Eigen::Vector3d excitation;
 
 double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
-double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, mux, muy, ki;
+double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, ki, h;
 
 double yss, gamma;
 bool flag_pos = false;
@@ -105,8 +105,8 @@ bool dlyap_flag = false;
 
 public:
 
-LQTIController(ros::NodeHandle& nh);
-~LQTIController();
+RLLQTIController(ros::NodeHandle& nh);
+~RLLQTIController();
 
 ros::NodeHandle handle;
 ros::NodeHandle priv_handle;
@@ -120,9 +120,9 @@ Eigen::MatrixXd dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd&
 double Calc_reward(const Eigen::VectorXd& old_state, const float& old_u, const Eigen::MatrixXd& Q, const double& R);
 std::pair<Eigen::MatrixXd, Eigen::MatrixXd> UpdateMatrices(const double& kp);
 Eigen::VectorXd UpdateTheta(const Eigen::MatrixXd& H_THETA);
-void Calc_Q_lyap(std::vector<PlantAxis>& axes, const Eigen::MatrixXd& Cd, const double& Qe, const double R);
+void Calc_Q_lyap(std::vector<PlantAxis>& axes, const Eigen::MatrixXd& Cd, const double& Qe, const double& R, const double& h);
 void Calc_reward_all(double& h);
-AxisSystem buildAxisSystem(double& kp, const Eigen::RowVectorXd& K);
+AxisSystem buildAxisSystem(double& kp, const Eigen::RowVectorXd& K, double& h);
 void totalCost(const Eigen::Vector3d& reward, double& h);
 
 };

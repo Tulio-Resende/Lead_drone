@@ -1,6 +1,7 @@
 ## Flags
 flag_LQT: false
 flag_a3: false
+h: 0.02
 
 # LQT Parameters
 # Reference
@@ -128,7 +129,7 @@ Ky_LQTI:
 ## RL-LQT
 kpx: 0.4
 kpy: 0.2
-ki: 1
+ki: 10000
 Qe: 1
 R: 1                  
 K0factor: 0.02
@@ -137,4 +138,4 @@ gamma: 0.5
 
 ## LQTI
 yss: 2
-
+Qe_LQTI: 0.0001
