@@ -350,8 +350,6 @@ AxisSystem RLLQTIController::buildAxisSystem(double& kp, const Eigen::RowVectorX
 
     sys.Ba << sys.Bp, 0, Bm;  // idem, Bm membro da classe
 
-    ROS_INFO_STREAM("Aqui");
-
     // === Monta A_dlyap ===
     sys.A_dlyap.resize(8, 8);
     sys.A_dlyap.setZero();
@@ -370,13 +368,15 @@ void RLLQTIController::sendCmdVel(double h){
     if (flag_pos && flag_ref && flag_vel){     
         static double t = 0.0;
 
+        ROS_INFO_STREAM("kpx" << kpx);
+        ROS_INFO_STREAM("kpy" << kpy);
+
+
         if(flag_second_time)
         {
 
             old_xDOF << old_pos.x(), old_vel.x();
             old_yDOF << old_pos.y(), old_vel.y();
-
-            ROS_INFO_STREAM("old_xDOF");
 
             old_y.x() = (Cd * old_xDOF)(0);
             old_y.y() = (Cd * old_yDOF)(0);
@@ -384,19 +384,13 @@ void RLLQTIController::sendCmdVel(double h){
 
             tilde_mu.x() = h*(yss - old_y.x());
             tilde_mu.y() = h*(yss - old_y.y());
-            ROS_INFO_STREAM("tilde_mu");
 
 
             tilde_pos = cur_pos - old_pos;
             tilde_vel = cur_vel - old_vel;
 
-            ROS_INFO_STREAM("tilde_vel");
-
-
             z_tilde_xDOF << tilde_pos.x(), tilde_vel.x(), tilde_mu.x(), ref_msg;
             z_tilde_yDOF << tilde_pos.y(), tilde_vel.y(), tilde_mu.y(), ref_msg;
-
-            ROS_INFO_STREAM("z_tilde_xDOF" << z_tilde_xDOF);
 
 
             tilde_u.x() = -Kx * z_tilde_xDOF;
@@ -407,16 +401,11 @@ void RLLQTIController::sendCmdVel(double h){
             augmented_state_x << z_tilde_xDOF, tilde_u.x();
             augmented_state_y << z_tilde_yDOF, tilde_u.y();
 
-            ROS_INFO_STREAM("augmented_state_x" << augmented_state_x);
-
-
-
             if(rl)
             {
                 // Bar_L_{k}
                 old_bar_x = fromx2xbar(old_augmented_state_x);
                 old_bar_y = fromx2xbar(old_augmented_state_y);
-                ROS_INFO_STREAM("old_bar_y");
 
                 // Bar_L_{k+1}
                 bar_x = fromx2xbar(augmented_state_x);
@@ -427,12 +416,8 @@ void RLLQTIController::sendCmdVel(double h){
                 phi[0] = old_bar_x - std::pow(gamma, h) * bar_x;
                 phi[1] = old_bar_y - std::pow(gamma, h) * bar_y;
                 
-                ROS_INFO_STREAM("AQUI");
-
                 // Reward
-                // Calc_reward_all(h);
-
-                ROS_INFO_STREAM("reward");
+                Calc_reward_all(h);
 
 
                 auto sys_x = buildAxisSystem(kpx, Kx, h);
@@ -440,16 +425,13 @@ void RLLQTIController::sendCmdVel(double h){
                 // auto sys_z   = buildAxisSystem(kp_z, Kz);
                 // auto sys_yaw = buildAxisSystem(kp_yaw, Kyaw);
 
-                ROS_INFO_STREAM("sys_x");
-
 
                 A_dlyap_x   = sys_x.A_dlyap;
                 A_dlyap_y   = sys_y.A_dlyap;
                 // A_dlyap_z   = sys_z.A_dlyap;
                 // A_dlyap_yaw = sys_yaw.A_dlyap;
 
-                ROS_INFO_STREAM("A_dlyap_x");
-
+                ROS_INFO_STREAM("A_dlyap_x" << A_dlyap_x);
 
                 H.resize(3);
                 H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_x.transpose(), Q_dlyap_x);
@@ -474,8 +456,8 @@ void RLLQTIController::sendCmdVel(double h){
                 // cost_msg.z = cost.z();
                 kp_pub.publish(kp_msg);
 
-                kpx = kpx + ki * h * (Erls.x());
-                kpy = kpy + ki * h * (Erls.y());
+                // kpx = kpx + ki * h * (Erls.x());
+                // kpy = kpy + ki * h * (Erls.y());
 
                 if (countk > 400)
                 {

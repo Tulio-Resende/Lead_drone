@@ -127,12 +127,12 @@ Ky_LQTI:
 # =======================
 
 ## RL-LQT
-kpx: 0.4
-kpy: 0.2
-ki: 10000
+kpx: 1.5
+kpy: 1.5
+ki: 10
 Qe: 1
 R: 1                  
-K0factor: 0.02
+K0factor: 1
 gamma: 0.5
 
 
