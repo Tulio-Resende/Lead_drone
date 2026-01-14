@@ -15,8 +15,6 @@ priv_handle("~"), dist(0.0, 0.2)
     nh.getParam("ki", ki);
     nh.getParam("gamma", gamma);
     nh.getParam("K0factor", K0factor);
-    // mux = kpx/20;
-    // muy = kpy/20;
 
     loadMatrix(nh, "Am", Am);
     loadMatrix(nh, "Cmx", Cmx);
@@ -50,6 +48,8 @@ priv_handle("~"), dist(0.0, 0.2)
     Q_dlyap_y = axes[1].Q_dlyap;
     // Q_dlyap_z = axes[2].Q_dlyap;
     // Q_dlyap_yaw = axes[3].Q_dlyap;
+
+    // O Qx e Qy estao certinhos
 
     ref_msg = Eigen::VectorXd::Zero(5);
 
@@ -126,7 +126,7 @@ void RLLQTController::receiveVel(const geometry_msgs::Vector3Stamped::ConstPtr& 
 
         flag_vel = true;
 
-        ROS_INFO_STREAM("vel "<< cur_vel);
+        // ROS_INFO_STREAM("vel "<< cur_vel);
     }
 }
 void RLLQTController::receiveRef(const std_msgs::Float64MultiArray::ConstPtr& msg)
@@ -421,7 +421,7 @@ inline void RLLQTController::Calc_Q_lyap(std::vector<PlantAxis>& axes, const Mat
         axis.Q_dlyap.block(0, 0, axis.Q.rows(), axis.Q.cols()) = axis.Q;
         axis.Q_dlyap(axis.Q.rows(), axis.Q.cols()) = R;
 
-        ROS_INFO_STREAM("✔ Q_" << axis.name << " calculado:\n" << axis.Q);
+        ROS_INFO_STREAM("Q_" << axis.name << " calculado:\n" << axis.Q);
     }
 }
 
@@ -439,9 +439,9 @@ AxisSystem RLLQTController::buildAxisSystem(double& kp, const Eigen::RowVectorXd
     sys.Ba.resize(7, 1);
 
     sys.Aa << sys.Ap, Eigen::Matrix<double, 2, 5>::Zero(),
-               Eigen::Matrix<double, 5, 2>::Zero(), Am;  // usa o Am membro da classe
+               Eigen::Matrix<double, 5, 2>::Zero(), Am;  // usa o Am do parameter
 
-    sys.Ba << sys.Bp, Bm;  // idem, Bm membro da classe
+    sys.Ba << sys.Bp, Bm;  // Bm do parameter
 
     // === Monta A_dlyap ===
     sys.A_dlyap.resize(8, 8);
@@ -460,12 +460,6 @@ void RLLQTController::sendCmdVel(double h){
     if (flag_pos && flag_vel && flag_ref)
     {       
         static double t = 0.0;
-
-        ROS_INFO_STREAM("mux" << mux);
-        ROS_INFO_STREAM("kpx" << kpx);
-        ROS_INFO_STREAM("muy" << muy);
-        ROS_INFO_STREAM("kpy" << kpy);
-
     
         // x_{k}
         state_x << cur_pos.x(), cur_vel.x(), ref_msg;
@@ -511,30 +505,33 @@ void RLLQTController::sendCmdVel(double h){
             // A_dlyap_yaw = sys_yaw.A_dlyap;
 
             H.resize(3);
-            H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_x.transpose(), Q_dlyap_x);
-            H[1] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_y.transpose(), Q_dlyap_y);
+            H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h)) * A_dlyap_x.transpose(), Q_dlyap_x);
+            H[1] = dlyap_iterative(std::sqrt(std::pow(gamma, h)) * A_dlyap_y.transpose(), Q_dlyap_y);
             // ROS_INFO_STREAM("H" << H[0]);
 
             theta_x = UpdateTheta(H[0]);
             theta_y = UpdateTheta(H[1]);
             // ROS_INFO_STREAM("theta" << theta);
 
-
             // error
             Erls.x() = reward.x() - phi[0].transpose() * theta_x;
             Erls.y() = reward.y() - phi[1].transpose() * theta_y;
             ROS_INFO_STREAM("erls" << Erls.x());
             ROS_INFO_STREAM("erls_y" << Erls.y());
-
+            // ROS_INFO_STREAM("reward" << reward.x());
+            // ROS_INFO_STREAM("phi" << phi[0].transpose());
+            // ROS_INFO_STREAM("theta_x" << theta_x.transpose());
 
             geometry_msgs::Vector3 kp_msg;
             kp_msg.x = kpx;
             kp_msg.y = kpy;
-            // cost_msg.z = cost.z();
             kp_pub.publish(kp_msg);
 
-            kpx = kpx + ki * h * (Erls.x());
-            kpy = kpy + ki * h * (Erls.y());
+            kpx = kpx + ki * (h * Erls.x());
+            kpy = kpy + ki * (h * Erls.y());
+
+            ROS_INFO_STREAM("mux" << mux);
+            ROS_INFO_STREAM("kpy" << kpy);
 
             if (countk > 400)
             {
@@ -547,15 +544,17 @@ void RLLQTController::sendCmdVel(double h){
 
                 Kx = inv_scalar_x * H[0].row(z-1).segment(0,z-1);
                 Ky = inv_scalar_y * H[1].row(z-1).segment(0,z-1);
+                ROS_INFO_STREAM("Updated Kx: " << Kx);
                 ROS_INFO_STREAM("Updated Ky: " << Ky);
 
-                gain_msg_y.data.resize(state_x.size());
+
                 gain_msg_x.data.resize(state_x.size());
+                gain_msg_y.data.resize(state_y.size());
 
                 for (int i = 0; i < state_x.size(); i++) 
                 {
                     gain_msg_x.data[i] = Kx[i]; 
-                    gain_msg_y.data[i] = Kx[i];   
+                    gain_msg_y.data[i] = Ky[i];   
                 }
                 gain_pub.publish(gain_msg_x); 
 
