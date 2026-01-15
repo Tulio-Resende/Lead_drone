@@ -64,7 +64,7 @@ Eigen::Vector3d cur_vel, old_vel, tilde_vel;
 Eigen::Vector3d tilde_mu;
 Eigen::VectorXd z_tilde_xDOF, z_tilde_yDOF, old_z_tilde_xDOF, old_z_tilde_yDOF;
 Eigen::VectorXd old_xDOF, old_yDOF;
-Eigen::Vector3d u, old_u, tilde_u;
+Eigen::Vector3d u, old_u, tilde_u, old_tilde_u;
 Eigen::RowVectorXd Kx, Ky, kz;
 Eigen::VectorXd old_y;
 
@@ -91,7 +91,7 @@ Eigen::VectorXd bar_x, bar_y;
 Eigen::Vector3d excitation;
 
 double K0factor, THETA0factor, PRLS0factor, ALPHA0factor;
-double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, ki, h;
+double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, kix, kiy, h;
 
 double yss, gamma;
 bool flag_pos = false;

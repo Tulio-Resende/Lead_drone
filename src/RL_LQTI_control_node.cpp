@@ -13,11 +13,12 @@ priv_handle("~")
     nh.getParam("R", R);
     nh.getParam("kpx", kpx);
     nh.getParam("kpy", kpy);
-    nh.getParam("ki", ki);
+    nh.getParam("kix", kix);
+    nh.getParam("kiy", kiy);
+
     nh.getParam("gamma", gamma);
     nh.getParam("K0factor", K0factor);
     nh.getParam("h", h);
-
     
     loadMatrix(nh, "Kx_LQTI", Kx);
     loadMatrix(nh, "Ky_LQTI", Ky);
@@ -26,13 +27,6 @@ priv_handle("~")
     loadMatrix(nh, "Cmy_LQTI", Cmy);
     loadMatrix(nh, "Bm_LQTI", Bm);
     loadMatrix(nh, "Cd", Cd);
-
-
-    ROS_INFO_STREAM("Qe_LQTI" << Qe);
-    ROS_INFO_STREAM("Am_LQTI" << Am);
-    ROS_INFO_STREAM("Cmx_LQTI" << Cmx);
-    ROS_INFO_STREAM("Cmy_LQTI" << Cmy);
-
 
 
     //initial gain
@@ -69,6 +63,8 @@ priv_handle("~")
 
     old_u = Eigen::Vector3d::Zero(3);
     tilde_u = Eigen::Vector3d::Zero(3);
+    old_tilde_u = Eigen::Vector3d::Zero(3);
+
 
     old_xDOF = Eigen::VectorXd::Zero(n_state);
     old_yDOF = Eigen::VectorXd::Zero(n_state);
@@ -223,8 +219,8 @@ double RLLQTIController::Calc_reward(const Eigen::VectorXd& old_state, const flo
 
 void RLLQTIController::Calc_reward_all(double& t)
 {
-    reward.x() = Calc_reward(old_z_tilde_xDOF, old_u.x(), Qx, R);
-    reward.y() = Calc_reward(old_z_tilde_yDOF, old_u.y(), Qy, R);
+    reward.x() = Calc_reward(old_z_tilde_xDOF, old_tilde_u.x(), Qx, R);
+    reward.y() = Calc_reward(old_z_tilde_yDOF, old_tilde_u.y(), Qy, R);
     // reward.z() = Calc_reward(old_state_z, old_u.z(), Qz, R);
     // reward.yaw() = Calc_reward(old_state_yaw, old_u.z(), Qyaw, R); // se tiver yaw separado
 
@@ -314,7 +310,7 @@ inline void RLLQTIController::Calc_Q_lyap(std::vector<PlantAxis>& axes, const Ma
         axis.Q_dlyap.block(0, 0, axis.Q.rows(), axis.Q.cols()) = axis.Q;
         axis.Q_dlyap(axis.Q.rows(), axis.Q.cols()) = R;
 
-        ROS_INFO_STREAM("✔ Q_" << axis.name << " calculado:\n" << axis.Q);
+        ROS_INFO_STREAM("Q_" << axis.name << " calculado:\n" << axis.Q);
     }
 }
 
@@ -331,8 +327,6 @@ AxisSystem RLLQTIController::buildAxisSystem(double& kp, const Eigen::RowVectorX
     sys.Aa.resize(7, 7);
     sys.Ba.resize(7, 1);
 
-
-
     sys.Aa.setZero();
 
     // linha 0–1
@@ -340,7 +334,7 @@ AxisSystem RLLQTIController::buildAxisSystem(double& kp, const Eigen::RowVectorX
     sys.Aa.block<2,5>(0,2) = Eigen::Matrix<double,2,5>::Zero();
 
     // linha 2
-    sys.Aa.block<1,2>(2,0) = h * Cd;
+    sys.Aa.block<1,2>(2,0) =-h * Cd;
     sys.Aa(2,2) = 1.0;
     sys.Aa.block<1,4>(2,3) = Eigen::Matrix<double,1,4>::Zero();
 
@@ -348,7 +342,7 @@ AxisSystem RLLQTIController::buildAxisSystem(double& kp, const Eigen::RowVectorX
     sys.Aa.block<4,3>(3,0) = Eigen::Matrix<double,4,3>::Zero();
     sys.Aa.block<4,4>(3,3) = Am;
 
-    sys.Ba << sys.Bp, 0, Bm;  // idem, Bm membro da classe
+    sys.Ba << sys.Bp, 0, Bm; 
 
     // === Monta A_dlyap ===
     sys.A_dlyap.resize(8, 8);
@@ -368,71 +362,82 @@ void RLLQTIController::sendCmdVel(double h){
     if (flag_pos && flag_ref && flag_vel){     
         static double t = 0.0;
 
-        ROS_INFO_STREAM("kpx" << kpx);
-        ROS_INFO_STREAM("kpy" << kpy);
-
-
         if(flag_second_time)
         {
 
             old_xDOF << old_pos.x(), old_vel.x();
             old_yDOF << old_pos.y(), old_vel.y();
 
+            // ROS_INFO_STREAM("old_xDOF" << old_xDOF);
+
+
             old_y.x() = (Cd * old_xDOF)(0);
             old_y.y() = (Cd * old_yDOF)(0);
 
+            // ROS_INFO_STREAM("old_y" << old_y);
 
             tilde_mu.x() = h*(yss - old_y.x());
             tilde_mu.y() = h*(yss - old_y.y());
 
+            // ROS_INFO_STREAM("tilde_mu" << tilde_mu);
 
             tilde_pos = cur_pos - old_pos;
             tilde_vel = cur_vel - old_vel;
 
+            // ROS_INFO_STREAM("tilde_pos" << tilde_pos);
+            // ROS_INFO_STREAM("tilde_vel" << tilde_vel);
+            // ROS_INFO_STREAM("ref_msg" << ref_msg);
+
+
             z_tilde_xDOF << tilde_pos.x(), tilde_vel.x(), tilde_mu.x(), ref_msg;
             z_tilde_yDOF << tilde_pos.y(), tilde_vel.y(), tilde_mu.y(), ref_msg;
 
+            // ROS_INFO_STREAM("z_tilde_xDOF" << z_tilde_xDOF);
 
             tilde_u.x() = -Kx * z_tilde_xDOF;
             tilde_u.y() = -Ky * z_tilde_yDOF;
             tilde_u.z() = 0.0;
 
-            // L_{k}
+            // ROS_INFO_STREAM("tilde_u" << tilde_u);
+
             augmented_state_x << z_tilde_xDOF, tilde_u.x();
             augmented_state_y << z_tilde_yDOF, tilde_u.y();
 
+            // ROS_INFO_STREAM("augmented_state_x" << augmented_state_x);
+
+
             if(rl)
             {
-                // Bar_L_{k}
+                // Bar_L_{k-1}
                 old_bar_x = fromx2xbar(old_augmented_state_x);
                 old_bar_y = fromx2xbar(old_augmented_state_y);
+                // ROS_INFO_STREAM("old_bar_x" << old_bar_x);
 
-                // Bar_L_{k+1}
+                // Bar_L_{k}
                 bar_x = fromx2xbar(augmented_state_x);
                 bar_y = fromx2xbar(augmented_state_y);
+                // ROS_INFO_STREAM("bar_x" << bar_x);
 
                 // Phi
                 phi.resize(3);
                 phi[0] = old_bar_x - std::pow(gamma, h) * bar_x;
                 phi[1] = old_bar_y - std::pow(gamma, h) * bar_y;
                 
-                // Reward
-                Calc_reward_all(h);
+                // Reward r_{k-1}
+                Calc_reward_all(t);
 
-
+                // Setting matrix A_dlyap
                 auto sys_x = buildAxisSystem(kpx, Kx, h);
                 auto sys_y = buildAxisSystem(kpy, Ky, h);
                 // auto sys_z   = buildAxisSystem(kp_z, Kz);
                 // auto sys_yaw = buildAxisSystem(kp_yaw, Kyaw);
-
-
                 A_dlyap_x   = sys_x.A_dlyap;
                 A_dlyap_y   = sys_y.A_dlyap;
                 // A_dlyap_z   = sys_z.A_dlyap;
                 // A_dlyap_yaw = sys_yaw.A_dlyap;
+                // ROS_INFO_STREAM("A_dlyap_x" << A_dlyap_x);
 
-                ROS_INFO_STREAM("A_dlyap_x" << A_dlyap_x);
-
+                // dlyap to get H matrix
                 H.resize(3);
                 H[0] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_x.transpose(), Q_dlyap_x);
                 H[1] = dlyap_iterative(std::sqrt(std::pow(gamma, h))*A_dlyap_y.transpose(), Q_dlyap_y);
@@ -442,22 +447,24 @@ void RLLQTIController::sendCmdVel(double h){
                 theta_y = UpdateTheta(H[1]);
                 // ROS_INFO_STREAM("theta" << theta);
 
-
                 // error
                 Erls.x() = reward.x() - phi[0].transpose() * theta_x;
                 Erls.y() = reward.y() - phi[1].transpose() * theta_y;
-                ROS_INFO_STREAM("erls" << Erls.x());
+                ROS_INFO_STREAM("erls_x" << Erls.x());
                 ROS_INFO_STREAM("erls_y" << Erls.y());
 
 
                 geometry_msgs::Vector3 kp_msg;
                 kp_msg.x = kpx;
                 kp_msg.y = kpy;
-                // cost_msg.z = cost.z();
                 kp_pub.publish(kp_msg);
 
-                // kpx = kpx + ki * h * (Erls.x());
-                // kpy = kpy + ki * h * (Erls.y());
+                kpx = kpx + kix * h * (Erls.x());
+                kpy = kpy + kiy * h * (Erls.y());
+
+                ROS_INFO_STREAM("kpx" << kpx);
+                ROS_INFO_STREAM("kpy" << kpy);
+
 
                 if (countk > 400)
                 {
@@ -470,29 +477,35 @@ void RLLQTIController::sendCmdVel(double h){
 
                     Kx = inv_scalar_x * H[0].row(z-1).segment(0,z-1);
                     Ky = inv_scalar_y * H[1].row(z-1).segment(0,z-1);
+                    ROS_INFO_STREAM("Updated Kx: " << Kx);
                     ROS_INFO_STREAM("Updated Ky: " << Ky);
 
-                    gain_msg_y.data.resize(z_tilde_xDOF.size());
                     gain_msg_x.data.resize(z_tilde_xDOF.size());
+                    gain_msg_y.data.resize(z_tilde_yDOF.size());
 
                     for (int i = 0; i < z_tilde_xDOF.size(); i++) 
                     {
                         gain_msg_x.data[i] = Kx[i]; 
-                        gain_msg_y.data[i] = Kx[i];   
+                        gain_msg_y.data[i] = Ky[i];   
                     }
-                    gain_pub.publish(gain_msg_x); 
+                    gain_pub.publish(gain_msg_y); 
 
                     countk = 0;
                 
                 }
-                old_augmented_state_x = augmented_state_x;
-                old_augmented_state_y = augmented_state_y;
-                t += h;    
+   
             }
+            old_augmented_state_x = augmented_state_x;
+            old_augmented_state_y = augmented_state_y;
+            t += h;  
+            rl = true;
+            countk = countk + 1;
+            old_tilde_u = tilde_u;
+            old_z_tilde_xDOF = z_tilde_xDOF;
+            old_z_tilde_yDOF = z_tilde_yDOF;
 
 
         }
-
         u.x() = old_u.x() + tilde_u.x();
         u.y() = old_u.y() + tilde_u.y();
         u.z() = 0.0;
@@ -503,15 +516,10 @@ void RLLQTIController::sendCmdVel(double h){
 
         vel_pub.publish(vel_msg);
 
-
         old_pos = cur_pos;
         old_vel = cur_vel;
         old_u = u;
-      
         flag_second_time = true;
-        rl = true;
-        countk = countk + 1;
-
     }
 }
 
