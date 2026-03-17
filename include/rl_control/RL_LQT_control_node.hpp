@@ -101,7 +101,7 @@ private:
     Eigen::MatrixXd Q_dlyap_x, Q_dlyap_y, Q_dlyap_z, Q_dlyap_yaw;
        
     double K0factor, THETA0factor, PRLS0factor, ALPHA0factor, gamma;
-    double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, mux, muy, ki;
+    double countk, inv_scalar_x, inv_scalar_y, inv_scalar_z, Qe, R, kpx, kpy, mux, muy, kix, kiy;
  
     bool flag_pos = false;
     bool flag_vel = false;

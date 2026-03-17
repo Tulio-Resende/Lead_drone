@@ -459,6 +459,36 @@ void RLLQTIController::sendCmdVel(double h){
                 kp_msg.y = kpy;
                 kp_pub.publish(kp_msg);
 
+
+                
+                constexpr double kmin = 0.5;
+                constexpr double kmax = 20.0;
+
+                // taxa de adaptação
+                double kpx_dot = kix * Erls.x();
+                double kpy_dot = kiy * Erls.y();
+
+                // ---- eixo X ----
+                if ((kpx > kmin && kpx < kmax) ||      // livre
+                    (kpx <= kmin && kpx_dot > 0) ||    // no mínimo, erro puxa pra cima
+                    (kpx >= kmax && kpx_dot < 0))      // no máximo, erro puxa pra baixo
+                {
+                    kpx += h * kpx_dot;
+                }
+
+                // ---- eixo Y ----
+                if ((kpy > kmin && kpy < kmax) ||
+                    (kpy <= kmin && kpy_dot > 0) ||
+                    (kpy >= kmax && kpy_dot < 0))
+                {
+                    kpy += h * kpy_dot;
+                }
+
+                // proteção final
+                kpx = std::max(kmin, std::min(kpx, kmax));
+                kpy = std::max(kmin, std::min(kpy, kmax));
+
+
                 kpx = kpx + kix * h * (Erls.x());
                 kpy = kpy + kiy * h * (Erls.y());
 
