@@ -184,6 +184,49 @@ Eigen::VectorXd RLLQTIController::fromx2xbar(const Eigen::VectorXd& x)
     return -xbar;
 }
 
+Eigen::MatrixXd RLLQTIController::dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q) {
+
+    int rowsA = A.rows(), colsA = A.cols();
+    Eigen::MatrixXd kron = Eigen::MatrixXd::Zero(rowsA*rowsA, colsA*colsA);
+
+    // Verificar se Q é quadrada e tem mesma dimensão que A
+    assert(Q.rows() == rowsA && Q.cols() == rowsA);
+    
+    
+    // Matriz identidade de dimensão n² × n²
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(rowsA*rowsA, rowsA*rowsA);
+
+    kron = kronecker(A, A);
+    Eigen::MatrixXd M = I - kron;
+    
+    // Vectorizar Q
+    Eigen::VectorXd vecQ = Eigen::Map<const Eigen::VectorXd>(Q.data(), Q.size());
+    
+    // Resolver o sistema linear (mais estável que calcular inversa)
+    Eigen::VectorXd vecP = M.colPivHouseholderQr().solve(vecQ);
+    
+    // Recuperar a matriz P
+    return Eigen::Map<const Eigen::MatrixXd>(vecP.data(), rowsA, rowsA);
+}
+
+
+Eigen::MatrixXd RLLQTIController::kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B)
+{
+    int rowsA = A.rows(), colsA = A.cols();
+    int rowsB = B.rows(), colsB = B.cols();
+
+    // Kronecker product: A^T ⊗ A
+    
+    Eigen::MatrixXd kron(rowsA * rowsB, colsA * colsB);
+
+    for (int i = 0; i < rowsA; i++) {
+        for (int j = 0; j < colsA; j++) {
+            kron.block(i * rowsB, j * colsB, rowsB, colsB) = A(i, j) * B;
+        }
+    }
+    return kron;
+}
+
 Eigen::MatrixXd RLLQTIController::dlyap_iterative(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q, 
                                int max_iter, double tol) {
     int n = A.rows();

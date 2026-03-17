@@ -124,5 +124,7 @@ void Calc_Q_lyap(std::vector<PlantAxis>& axes, const Eigen::MatrixXd& Cd, const 
 void Calc_reward_all(double& h);
 AxisSystem buildAxisSystem(double& kp, const Eigen::RowVectorXd& K, double& h);
 void totalCost(const Eigen::Vector3d& reward, double& h);
+Eigen::MatrixXd dlyap(const Eigen::MatrixXd& A, const Eigen::MatrixXd& Q);
+Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B);
 
 };
